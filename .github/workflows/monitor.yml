@@ -1,0 +1,33 @@
+name: monitor
+on:
+  schedule:
+    - cron: '50 6 * * 1-5'   # 06:50 UTC ≈ 14:50 台北(cron 有 3-15 分漂移,落地約 15:00)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: monitor
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet "pandas>=2.3" requests xlrd
+      - run: python3 check_premium.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - run: |
+          git config user.name "runic-monitor[bot]"
+          git config user.email "runic-monitor@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "monitor $(date -u '+%Y-%m-%d %H:%M') UTC"
+          git push

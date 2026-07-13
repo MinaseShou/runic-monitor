@@ -1,0 +1,48 @@
+{
+ "history": [
+  {
+   "date": "2026-07-09",
+   "cost": 166.0,
+   "cost_bp": 36.34,
+   "contract": "202607",
+   "vix_p": 0.107,
+   "ratio_p": 0.639,
+   "G2": false,
+   "G3": false,
+   "vix_date": "2026-07-10",
+   "margin": "NORMAL",
+   "kr_dd": -0.0792,
+   "kr_level": 0,
+   "jp_dd": -0.0386,
+   "jp_level": 0,
+   "fx_dd": -0.0024,
+   "fx_level": 0
+  }
+ ],
+ "last": {
+  "date": "2026-07-09",
+  "cost": 166.0,
+  "cost_bp": 36.34,
+  "contract": "202607",
+  "vix_p": 0.107,
+  "ratio_p": 0.639,
+  "G2": false,
+  "G3": false,
+  "vix_date": "2026-07-10",
+  "margin": "NORMAL",
+  "kr_dd": -0.0792,
+  "kr_level": 0,
+  "jp_dd": -0.0386,
+  "jp_level": 0,
+  "fx_dd": -0.0024,
+  "fx_level": 0,
+  "slow_armed": false
+ },
+ "jp_hist": {
+  "2026-06-05": 6683641.0,
+  "2026-06-12": 6366615.0,
+  "2026-06-19": 6469134.0,
+  "2026-06-26": 7009980.0,
+  "2026-07-03": 6739099.0
+ }
+}

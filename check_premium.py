@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """TXO 保險+市場監測 v5——GitHub Actions 版(雙軌之雲端軌;Mac 正本=~/RUNiC_LOCAL/txo/monitor/check_premium.py)
-與 Mac 版差異僅三點:①通知=開 GitHub Issue(本機 fallback=osascript)②USDJPY 主源=FRED(Actions IP 被 Yahoo 429)③每輪重寫 README 儀表。
+與 Mac 版差異僅三點:①通知=開 GitHub Issue(本機 fallback=osascript)②USDJPY 加 FRED fallback ③每輪重寫 README 儀表。
 五面旗:
 ① G2 壓力開關(VIX p252>=70% 或 VVIX/VIX ratio p252<=20%;翻轉時通知)= 事故前上膛候選(探索性,2026-07-12 radar 相關性分析)
 ② 保費慢開關(cost_bp 連 20 個交易日 <=10bp)= 年代級可負擔
@@ -236,7 +236,7 @@ except Exception as e:
     log_line(f'WARN:JPX 段失敗 {type(e).__name__}(本輪 UNKNOWN)')
 try:
     fx = None
-    for fn in ((fetch_fx_fred, fetch_fx_yahoo) if ON_GITHUB else (fetch_fx_yahoo, fetch_fx_fred)):
+    for fn in (fetch_fx_yahoo, fetch_fx_fred):  # Yahoo 即時為主,FRED(lag 數日)fallback;2026-07-13 Actions 實測 Yahoo 通
         try:
             fx = fn()
             if len(fx) > 63:

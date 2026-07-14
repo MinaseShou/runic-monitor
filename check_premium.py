@@ -298,6 +298,8 @@ def lamp(cond_bad, cond_warn):
 
 readme = f"""# RUNiC Monitor(五面旗,每交易日 ~15:00 台北自動更新)
 
+**📊 儀表板:https://minaseshou.github.io/runic-monitor/**
+
 **最後更新:{datetime.now().strftime('%Y-%m-%d %H:%M')} {'UTC' if ON_GITHUB else '台北'}|資料日 {rec['date']}**
 
 | 旗 | 狀態 | 讀值 |

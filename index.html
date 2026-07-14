@@ -72,7 +72,8 @@ footer{color:var(--muted); font-size:12px; margin:18px 4px 8px; line-height:1.7}
 <div class="cards" id="cards"></div>
 <footer>
   五面旗=context 非訊號(「市場層風險訊號永不疊加本書」)。跨關卡/翻轉時另以 GitHub Issue 推播。<br>
-  口徑:G2=VIX p252≥70% 或 VVIX/VIX ratio p252≤20%;保費=TXO 5-9DTE 95/90 put spread;台灣融資=上市(FinMind);韓國=KOFIA 信用融資(日頻);日本=JPX 委託買い残(週頻)+USDJPY 距 63 日高。
+  口徑:G2=VIX p252≥70% 或 VVIX/VIX ratio p252≤20%;保費=TXO 5-9DTE 95/90 put spread;台灣融資=上市(FinMind);韓國=KOFIA 信用融資(日頻);日本=JPX 委託買い残(週頻)+USDJPY 距 63 日高。<br>
+  歷史曲線含 backfill.json 回填(build_backfill.py 生成);日本回填=JPX 過去推移表「制度+一般合計」口徑,與 live 委託口徑差約 0.1%、距峰基準=52 週滾動峰,僅供顯示;韓國回填距峰=400 日窗累積峰。
 </footer>
 <script>
 const btn = document.getElementById('themeBtn');
@@ -88,7 +89,7 @@ if (localStorage.runicTheme) document.documentElement.dataset.theme = localStora
 
 const S = { good:'--good', warn:'--warn', serious:'--serious', critical:'--critical' };
 const GLYPH = { good:'●', warn:'▲', serious:'▲', critical:'■' };
-let DATA = null;
+let DATA = null, BACKFILL = null;
 
 function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
 function pct(x, d=1){ return x==null ? '—' : (x*100).toFixed(d)+'%'; }
@@ -137,7 +138,12 @@ function spark(id, pts, fmt){
 function render(){
   if (!DATA) return;
   const L = DATA.last, H = DATA.history || [];
-  const hp = k => H.filter(h => h[k] != null).map(h => ({ d:h.date, v:h[k] }));
+  const hp = k => {                       // 回填序列+live history 以日期合併(live 覆蓋同日)
+    const m = new Map();
+    ((BACKFILL && BACKFILL.series && BACKFILL.series[k]) || []).forEach(([d,v]) => m.set(d, v));
+    H.forEach(h => { if (h[k] != null) m.set(h.date, h[k]); });
+    return [...m.entries()].sort((a,b) => a[0] < b[0] ? -1 : 1).map(([d,v]) => ({ d, v }));
+  };
 
   // ① G2
   const g2s = L.G3 ? 'critical' : L.G2 ? 'warn' : (L.G2 === null ? 'serious' : 'good');
@@ -171,6 +177,7 @@ function render(){
     <div class="flag"><span class="name">③ 台灣融資 regime</span>${badge(tws, L.margin||'UNKNOWN')}</div>
     <div class="hero">${pct(L.margin_bal_dd)}<small> 餘額距峰</small></div>
     <div class="sub">63 日 <b>${pct(L.margin_chg63)}</b>|大盤距峰 <b>${pct(L.margin_px_dd)}</b><br>SPIRAL=價 &lt;−10% 且(餘額 &lt;−15% 或 63 日 &lt;−10%)</div>
+    <div class="spark" id="sp_tw"><svg></svg><div class="tip"></div><div class="cap">餘額距峰 %(近 ${hp('margin_bal_dd').length} 筆)</div></div>
   </div>
   <div class="card">
     <div class="flag"><span class="name">④ 韓國融資進度條</span>${badge(lvMap(L.kr_level), L.kr_level==null?'UNKNOWN':'lv'+L.kr_level)}</div>
@@ -183,16 +190,24 @@ function render(){
     <div class="hero">${pct(L.jp_dd)}<small> 買い残距峰(JPX 週頻)</small></div>
     ${L.jp_dd==null?'':gateBar(L.jp_dd, [{at:-0.10,lab:'−10%'},{at:-0.20,lab:'−20%'}], -0.30, '日本去槓桿進度')}
     ${L.fx_dd==null?'':gateBar(L.fx_dd, [{at:-0.03,lab:'−3%'},{at:-0.06,lab:'−6%'}], -0.09, 'USDJPY 距 63 日高(carry unwind,關卡未回測)')}
+    <div style="display:grid;gap:0 16px;grid-template-columns:1fr 1fr">
+      <div class="spark" id="sp_jp"><svg></svg><div class="tip"></div><div class="cap">買い残距 52 週峰 %(週頻,近 ${hp('jp_dd').length} 筆)</div></div>
+      <div class="spark" id="sp_fx"><svg></svg><div class="tip"></div><div class="cap">USDJPY 距 63 日高 %(近 ${hp('fx_dd').length} 筆)</div></div>
+    </div>
   </div>`;
 
   spark('sp_vix', hp('vix_p'), v => 'p'+Math.round(v*100));
   spark('sp_cost', hp('cost_bp'), v => v.toFixed(1)+'bp');
+  spark('sp_tw', hp('margin_bal_dd'), v => (v*100).toFixed(1)+'%');
   spark('sp_kr', hp('kr_dd'), v => (v*100).toFixed(1)+'%');
+  spark('sp_jp', hp('jp_dd'), v => (v*100).toFixed(1)+'%');
+  spark('sp_fx', hp('fx_dd'), v => (v*100).toFixed(1)+'%');
 }
 
-fetch('state.json?t=' + Date.now())
-  .then(r => r.json())
-  .then(j => { DATA = j; render(); })
+Promise.all([
+  fetch('state.json?t=' + Date.now()).then(r => r.json()),
+  fetch('backfill.json?t=' + Date.now()).then(r => r.ok ? r.json() : null).catch(() => null),
+]).then(([s, b]) => { DATA = s; BACKFILL = b; render(); })
   .catch(e => { document.getElementById('cards').innerHTML =
     `<div class="err">state.json 載入失敗:${e}</div>`; });
 addEventListener('resize', () => render());

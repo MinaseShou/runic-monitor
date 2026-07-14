@@ -2,6 +2,7 @@ name: monitor
 on:
   schedule:
     - cron: '50 6 * * 1-5'   # 06:50 UTC ≈ 14:50 台北(cron 有 3-15 分漂移,落地約 15:00)
+    - cron: '25 7 * * 1-5'   # 07:25 UTC catch-up:GitHub 高峰會 drop 排程(2026-07-14 實例);腳本冪等,重複跑無害
   workflow_dispatch:
 
 permissions:

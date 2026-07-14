@@ -73,7 +73,8 @@ footer{color:var(--muted); font-size:12px; margin:18px 4px 8px; line-height:1.7}
 <footer>
   五面旗=context 非訊號(「市場層風險訊號永不疊加本書」)。跨關卡/翻轉時另以 GitHub Issue 推播。<br>
   口徑:G2=VIX p252≥70% 或 VVIX/VIX ratio p252≤20%;保費=TXO 5-9DTE 95/90 put spread;台灣融資=上市(FinMind);韓國=KOFIA 信用融資(日頻);日本=JPX 委託買い残(週頻)+USDJPY 距 63 日高。<br>
-  歷史曲線含 backfill.json 回填(build_backfill.py 生成);日本回填=JPX 過去推移表「制度+一般合計」口徑,與 live 委託口徑差約 0.1%、距峰基準=52 週滾動峰,僅供顯示;韓國回填距峰=400 日窗累積峰。
+  「回撤」=距 252 觀測日(週頻=52 週)內高點,逐日僅用當日已知資訊、無前視,創新高時=0;「水位」=現值在近 3 年分佈的百分位——回撤答「跌多少」、水位答「堆多高」。<br>
+  歷史曲線含 backfill.json 回填(build_backfill.py 生成);日本回填與水位=JPX 過去推移表「制度+一般合計」口徑,與 live 委託口徑差約 0.1%,僅供顯示。
 </footer>
 <script>
 const btn = document.getElementById('themeBtn');
@@ -175,23 +176,25 @@ function render(){
   </div>
   <div class="card">
     <div class="flag"><span class="name">③ 台灣融資 regime</span>${badge(tws, L.margin||'UNKNOWN')}</div>
-    <div class="hero">${pct(L.margin_bal_dd)}<small> 餘額距峰</small></div>
-    <div class="sub">63 日 <b>${pct(L.margin_chg63)}</b>|大盤距峰 <b>${pct(L.margin_px_dd)}</b><br>SPIRAL=價 &lt;−10% 且(餘額 &lt;−15% 或 63 日 &lt;−10%)</div>
-    <div class="spark" id="sp_tw"><svg></svg><div class="tip"></div><div class="cap">餘額距峰 %(近 ${hp('margin_bal_dd').length} 筆)</div></div>
+    <div class="hero">${pct(L.margin_bal_dd)}<small> 餘額回撤(距 252 日高)</small></div>
+    <div class="sub">水位 <b>${L.margin_lvl_pct==null?'—':'p'+Math.round(L.margin_lvl_pct*100)}</b>(近 3 年)|63 日 <b>${pct(L.margin_chg63)}</b>|大盤回撤 <b>${pct(L.margin_px_dd)}</b><br>SPIRAL=價 &lt;−10% 且(餘額 &lt;−15% 或 63 日 &lt;−10%)</div>
+    <div class="spark" id="sp_tw"><svg></svg><div class="tip"></div><div class="cap">餘額回撤 %(近 ${hp('margin_bal_dd').length} 筆)</div></div>
   </div>
   <div class="card">
     <div class="flag"><span class="name">④ 韓國融資進度條</span>${badge(lvMap(L.kr_level), L.kr_level==null?'UNKNOWN':'lv'+L.kr_level)}</div>
-    <div class="hero">${pct(L.kr_dd)}<small> 距峰(KOFIA 日頻)</small></div>
+    <div class="hero">${pct(L.kr_dd)}<small> 回撤・距 252 日高(KOFIA 日頻)</small></div>
+    <div class="sub">水位 <b>${L.kr_lvl_pct==null?'—':'p'+Math.round(L.kr_lvl_pct*100)}</b>(近 3 年)</div>
     ${L.kr_dd==null?'':gateBar(L.kr_dd, [{at:-0.10,lab:'−10%'},{at:-0.20,lab:'−20%'}], -0.30, '去槓桿進度')}
-    <div class="spark" id="sp_kr"><svg></svg><div class="tip"></div><div class="cap">距峰 %(近 ${hp('kr_dd').length} 筆)</div></div>
+    <div class="spark" id="sp_kr"><svg></svg><div class="tip"></div><div class="cap">回撤 %(近 ${hp('kr_dd').length} 筆)</div></div>
   </div>
   <div class="card wide">
     <div class="flag"><span class="name">⑤ 日本槓桿+円 carry</span>${badge(lvMap(Math.max(L.jp_level??-1, L.fx_level??-1)), `JP lv${L.jp_level??'?'}/FX lv${L.fx_level??'?'}`)}</div>
-    <div class="hero">${pct(L.jp_dd)}<small> 買い残距峰(JPX 週頻)</small></div>
+    <div class="hero">${pct(L.jp_dd)}<small> 買い残回撤・距 52 週高(JPX 週頻)</small></div>
+    <div class="sub">水位 <b>${L.jp_lvl_pct==null?'—':'p'+Math.round(L.jp_lvl_pct*100)}</b>(近 3 年)</div>
     ${L.jp_dd==null?'':gateBar(L.jp_dd, [{at:-0.10,lab:'−10%'},{at:-0.20,lab:'−20%'}], -0.30, '日本去槓桿進度')}
     ${L.fx_dd==null?'':gateBar(L.fx_dd, [{at:-0.03,lab:'−3%'},{at:-0.06,lab:'−6%'}], -0.09, 'USDJPY 距 63 日高(carry unwind,關卡未回測)')}
     <div style="display:grid;gap:0 16px;grid-template-columns:1fr 1fr">
-      <div class="spark" id="sp_jp"><svg></svg><div class="tip"></div><div class="cap">買い残距 52 週峰 %(週頻,近 ${hp('jp_dd').length} 筆)</div></div>
+      <div class="spark" id="sp_jp"><svg></svg><div class="tip"></div><div class="cap">買い残回撤 %(週頻,近 ${hp('jp_dd').length} 筆)</div></div>
       <div class="spark" id="sp_fx"><svg></svg><div class="tip"></div><div class="cap">USDJPY 距 63 日高 %(近 ${hp('fx_dd').length} 筆)</div></div>
     </div>
   </div>`;

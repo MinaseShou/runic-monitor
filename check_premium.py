@@ -6,8 +6,10 @@
 ① G2 壓力開關(VIX p252>=70% 或 VVIX/VIX ratio p252<=20%;翻轉時通知)= 事故前上膛候選(探索性,2026-07-12 radar 相關性分析)
 ② 保費慢開關(cost_bp 連 20 個交易日 <=10bp)= 年代級可負擔
 ③ 融資 regime(NORMAL/WARNING/SPIRAL;韓式螺旋判別,margin_regime 案:擇時判死僅監測)
-④ 韓國融資進度條(KOFIA 日頻;距峰跨 -10%/-20% 通知)
-⑤ 日本槓桿+USDJPY(JPX 週頻 mtseisan 委託買い残+FRED 匯率;距峰跨 -10%/-20%、円距 63 日高跨 -3%/-6% 通知;純描述未回測)
+④ 韓國融資進度條(KOFIA 日頻;回撤跨 -10%/-20% 通知)
+⑤ 日本槓桿+USDJPY(JPX 週頻 mtseisan 委託買い残+FRED 匯率;回撤跨 -10%/-20%、円距 63 日高跨 -3%/-6% 通知;純描述未回測)
+口徑(2026-07-14 翔核定統一):「回撤」=距 252 觀測日(週頻=52 週)內高點,逐日僅用當日已知資訊、無前視;
+「水位」=現值在近 3 年(756 觀測)分佈的百分位——回撤答「跌多少」、水位答「堆多高」,兩面並列。
 資料:FinMind 免 token(TXO+TX)+CBOE 官方 CSV(VIX/VVIX)+KOFIA+JPX+FRED/Yahoo;fail=靜默 skip 留 log"""
 import json, os, re, subprocess, sys, time, io
 from datetime import datetime
@@ -148,12 +150,12 @@ if not op.empty and not fu.empty:
 # ---------- ③ 融資 regime(韓式螺旋判別;margin_regime 案 2026-07-12:擇時判死、僅監測) ----------
 margin_state = None
 margin_detail = 'N/A'
-margin_bal_dd = margin_chg63 = margin_px_dd = None
+margin_bal_dd = margin_chg63 = margin_px_dd = margin_lvl_pct = None
 try:
     m = fetch_finmind('TaiwanStockTotalMarginPurchaseShortSale', '',
-                      (today - pd.Timedelta(days=580)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
+                      (today - pd.Timedelta(days=1150)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
     tj = fetch_finmind('TaiwanStockPrice', 'TAIEX',
-                       (today - pd.Timedelta(days=580)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
+                       (today - pd.Timedelta(days=1150)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
     if not m.empty and not tj.empty:
         bal_s = m[m['name'] == 'MarginPurchaseMoney'].set_index('date')['TodayBalance'].astype(float)
         bal_s.index = pd.to_datetime(bal_s.index)
@@ -171,7 +173,8 @@ try:
             margin_state = 'WARNING'
         else:
             margin_state = 'NORMAL'
-        margin_detail = f'餘額距峰 {bal_dd:+.1%} 63日 {chg63:+.1%} 大盤距峰 {px_dd:+.1%}'
+        margin_lvl_pct = round(float((bal_s.tail(756) <= bal_s.iloc[-1]).mean()), 3)
+        margin_detail = f'餘額回撤 {bal_dd:+.1%} 水位 p{margin_lvl_pct:.0%} 63日 {chg63:+.1%} 大盤回撤 {px_dd:+.1%}'
         margin_bal_dd, margin_chg63, margin_px_dd = round(float(bal_dd), 4), round(float(chg63), 4), round(float(px_dd), 4)
 except Exception as e:
     margin_detail = f'融資段失敗 {type(e).__name__}'
@@ -180,10 +183,11 @@ except Exception as e:
 # ---------- ④ 韓國融資進度條(KOFIA FreeSIS 日頻;codex 摸通 2026-07-13) ----------
 kr_dd = None
 kr_level = None
+kr_lvl_pct = None
 kr_detail = 'N/A'
 try:
     payload = {"dmSearch": {"tmpV1": "D", "tmpV40": "01",
-                            "tmpV45": (today - pd.Timedelta(days=400)).strftime('%Y%m%d'),
+                            "tmpV45": (today - pd.Timedelta(days=1150)).strftime('%Y%m%d'),
                             "tmpV46": today.strftime('%Y%m%d'), "OBJ_NM": "STATSCU0100000070BO"}}
     kh = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
           "Content-Type": "application/json; charset=UTF-8", "X-Requested-With": "XMLHttpRequest",
@@ -193,14 +197,15 @@ try:
     ds = rk.json().get('ds1', [])
     kr = pd.Series({pd.Timestamp(str(r['TMPV1'])): float(str(r['TMPV2']).replace(',', '')) for r in ds if r.get('TMPV2')}).sort_index()
     if len(kr) > 100:
-        kr_dd = float(kr.iloc[-1] / kr.max() - 1)
+        kr_dd = float(kr.iloc[-1] / kr.tail(252).max() - 1)
+        kr_lvl_pct = round(float((kr.tail(756) <= kr.iloc[-1]).mean()), 3)
         kr_kosdaq = pd.Series({pd.Timestamp(str(r['TMPV1'])): float(str(r['TMPV4']).replace(',', '')) for r in ds if r.get('TMPV4')}).sort_index()
-        kq_dd = float(kr_kosdaq.iloc[-1] / kr_kosdaq.max() - 1)
-        kr_detail = f'合計距峰 {kr_dd:+.1%}(KOSDAQ 段 {kq_dd:+.1%})最新 {kr.iloc[-1]/1e6/1e6:.1f} 兆'
+        kq_dd = float(kr_kosdaq.iloc[-1] / kr_kosdaq.tail(252).max() - 1)
+        kr_detail = f'合計回撤 {kr_dd:+.1%} 水位 p{kr_lvl_pct:.0%}(KOSDAQ 段 {kq_dd:+.1%})最新 {kr.iloc[-1]/1e6/1e6:.1f} 兆'
         prev_lv = (state.get('last', {}) or {}).get('kr_level', 0)
         lv = 2 if kr_dd < -0.20 else (1 if kr_dd < -0.10 else 0)
         if lv > prev_lv:
-            notify('🇰🇷 韓國融資去槓桿跨關卡', f'{"距峰破 -20%" if lv==2 else "距峰破 -10%"}:{kr_detail}')
+            notify('🇰🇷 韓國融資去槓桿跨關卡', f'{"回撤破 -20%" if lv==2 else "回撤破 -10%"}:{kr_detail}')
         kr_level = lv
 except Exception as e:
     kr_detail = f'KOFIA 段失敗 {type(e).__name__}'
@@ -210,6 +215,7 @@ except Exception as e:
 jp_hist = dict(state.get('jp_hist', {})) if isinstance(state, dict) else {}
 jp_dd = fx_dd = None
 jp_level = fx_level = None
+jp_lvl_pct = None
 jp_detail = fx_detail = 'N/A'
 try:
     hp = requests.get('https://www.jpx.co.jp/markets/statistics-equities/margin/04.html',
@@ -229,11 +235,31 @@ try:
     jp_hist = dict(sorted(jp_hist.items())[-400:])
     if jp_hist:
         ks = sorted(jp_hist)
-        jp_dd = float(jp_hist[ks[-1]] / max(jp_hist.values()) - 1)
-        jp_detail = f'買い残 {jp_hist[ks[-1]]/1e6:.2f} 兆円({ks[-1]})距峰 {jp_dd:+.1%}'
+        jp_last = jp_hist[ks[-1]]
+        jp_dd = float(jp_last / max(jp_hist[k] for k in ks[-52:]) - 1)
+        # 水位分位:JPX 過去推移表(制度+一般合計,近 156 週)+ live 尾端;rank 對 ~0.1% 口徑縫不敏感
+        jp_lvl_pct = None
+        try:
+            hp6 = requests.get('https://www.jpx.co.jp/markets/statistics-equities/margin/06.html',
+                               headers=UA, timeout=60)
+            arch = []
+            for path6 in re.findall(r'href="(/markets/[^"]+?\.xls)"', hp6.text):
+                rx6 = requests.get(f'https://www.jpx.co.jp{path6}', headers=UA, timeout=60)
+                dfa = pd.read_excel(io.BytesIO(rx6.content), sheet_name=0, header=None)[[0, 4]]
+                dfa.columns = ['d', 'buy']
+                dfa['d'] = pd.to_datetime(dfa['d'], errors='coerce')
+                dfa['buy'] = pd.to_numeric(dfa['buy'], errors='coerce')
+                arch.append(dfa.dropna())
+            jpa = pd.concat(arch).drop_duplicates('d').set_index('d').sort_index()['buy']
+            w = list(jpa.tail(156)) + [jp_last]
+            jp_lvl_pct = round(float((pd.Series(w) <= jp_last).mean()), 3)
+        except Exception as e6:
+            log_line(f'WARN:JPX 推移表水位失敗 {type(e6).__name__}(jp 水位本輪 UNKNOWN)')
+        jp_detail = (f'買い残 {jp_last/1e6:.2f} 兆円({ks[-1]})回撤 {jp_dd:+.1%}'
+                     + (f' 水位 p{jp_lvl_pct:.0%}' if jp_lvl_pct is not None else ''))
         jp_level = 2 if jp_dd < -0.20 else (1 if jp_dd < -0.10 else 0)
         if jp_level > (prev.get('jp_level') or 0):
-            notify('🇯🇵 日本信用買い残跨關卡', f'{"距峰破 -20%" if jp_level==2 else "距峰破 -10%"}:{jp_detail}')
+            notify('🇯🇵 日本信用買い残跨關卡', f'{"回撤破 -20%" if jp_level==2 else "回撤破 -10%"}:{jp_detail}')
 except Exception as e:
     log_line(f'WARN:JPX 段失敗 {type(e).__name__}(本輪 UNKNOWN)')
 try:
@@ -260,9 +286,11 @@ rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=
            contract=contract, vix_p=round(vix_p, 3) if vix_p == vix_p else None,
            ratio_p=round(ratio_p, 3) if ratio_p == ratio_p else None, G2=g2, G3=g3, vix_date=vix_date,
            margin=margin_state, margin_bal_dd=margin_bal_dd, margin_chg63=margin_chg63,
-           margin_px_dd=margin_px_dd, kr_dd=round(kr_dd, 4) if kr_dd is not None else None,
-           kr_level=kr_level,
+           margin_px_dd=margin_px_dd, margin_lvl_pct=margin_lvl_pct,
+           kr_dd=round(kr_dd, 4) if kr_dd is not None else None,
+           kr_level=kr_level, kr_lvl_pct=kr_lvl_pct,
            jp_dd=round(jp_dd, 4) if jp_dd is not None else None, jp_level=jp_level,
+           jp_lvl_pct=jp_lvl_pct,
            fx_dd=round(fx_dd, 4) if fx_dd is not None else None, fx_level=fx_level)
 hist = [h for h in hist if h.get('date') != rec['date']]
 hist = sorted(hist + [rec], key=lambda h: h['date'])[-120:]
@@ -310,6 +338,7 @@ readme = f"""# RUNiC Monitor(五面旗,每交易日 ~15:00 台北自動更新)
 | ④ 韓國融資進度條 | {lamp(kr_level == 2, kr_level == 1) if kr_level is not None else '⚪'} lv{kr_level if kr_level is not None else '?'} | {kr_detail} |
 | ⑤ 日本槓桿+円 | {lamp((jp_level or 0) == 2 or (fx_level or 0) == 2, (jp_level or 0) == 1 or (fx_level or 0) == 1)} lv{jp_level if jp_level is not None else '?'}/{fx_level if fx_level is not None else '?'} | {jp_detail};{fx_detail} |
 
+口徑:回撤=距 252 觀測日(週頻=52 週)內高點(無前視);水位=近 3 年分佈百分位。
 跨關卡/翻轉時自動開 Issue(=手機推播)。全歷史見 [log.md](log.md) 與 git 歷史。
 定位=context 非訊號(「市場層風險訊號永不疊加本書」鐵律);雙軌之雲端軌,Mac launchd 為備援。
 """

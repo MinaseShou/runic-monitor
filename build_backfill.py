@@ -5,7 +5,7 @@
 - vix_p/ratio_p:CBOE 全史 → 每日 p252 分位,回填 252 交易日
 - cost_bp:FinMind TXO 逐日回算(監測同邏輯:5-9DTE 週約 95/90 put spread),回填 ~120 交易日(API 重)
 - margin_bal_dd/chg63/px_dd:FinMind 上市融資+TAIEX,回填 252 交易日
-- kr_dd:KOFIA 日頻 400 天,距窗內峰
+- kr_dd:KOFIA 日頻 3 年,回撤=距 252 觀測日高(與監測同口徑)
 - jp_dd:JPX 過去推移表(2013+ 檔,東名兩市場制度+一般合計買残金額;⚠️與 live jp_hist 的 mtseisan 委託口徑差 ~0.1%,僅供顯示),距 52 週峰,回填 ~104 週
 - fx_dd:Yahoo JPY=X 2 年,距 63 日高
 用法:python3 build_backfill.py → 寫 backfill.json;commit 後 Pages 生效"""
@@ -73,7 +73,7 @@ emit('margin_px_dd', (px / px.rolling(252, min_periods=200).max() - 1).tail(252)
 
 # ---------- ③ 韓國 KOFIA ----------
 payload = {"dmSearch": {"tmpV1": "D", "tmpV40": "01",
-                        "tmpV45": (today - pd.Timedelta(days=400)).strftime('%Y%m%d'),
+                        "tmpV45": (today - pd.Timedelta(days=1150)).strftime('%Y%m%d'),
                         "tmpV46": today.strftime('%Y%m%d'), "OBJ_NM": "STATSCU0100000070BO"}}
 kh = dict(UA, **{"Content-Type": "application/json; charset=UTF-8", "X-Requested-With": "XMLHttpRequest",
       "Origin": "https://freesis.kofia.or.kr",
@@ -81,7 +81,7 @@ kh = dict(UA, **{"Content-Type": "application/json; charset=UTF-8", "X-Requested
 rk = requests.post('https://freesis.kofia.or.kr/meta/getMetaDataList.do', json=payload, headers=kh, timeout=60)
 kr = pd.Series({pd.Timestamp(str(r['TMPV1'])): float(str(r['TMPV2']).replace(',', ''))
                 for r in rk.json().get('ds1', []) if r.get('TMPV2')}).sort_index()
-emit('kr_dd', (kr / kr.cummax() - 1))
+emit('kr_dd', (kr / kr.rolling(252, min_periods=60).max() - 1).tail(270))
 
 # ---------- ④ 日本 JPX 過去推移表 ----------
 hp = requests.get('https://www.jpx.co.jp/markets/statistics-equities/margin/06.html', headers=UA, timeout=60)

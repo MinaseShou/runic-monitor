@@ -148,6 +148,7 @@ if not op.empty and not fu.empty:
 # ---------- ③ 融資 regime(韓式螺旋判別;margin_regime 案 2026-07-12:擇時判死、僅監測) ----------
 margin_state = None
 margin_detail = 'N/A'
+margin_bal_dd = margin_chg63 = margin_px_dd = None
 try:
     m = fetch_finmind('TaiwanStockTotalMarginPurchaseShortSale', '',
                       (today - pd.Timedelta(days=580)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
@@ -171,6 +172,7 @@ try:
         else:
             margin_state = 'NORMAL'
         margin_detail = f'餘額距峰 {bal_dd:+.1%} 63日 {chg63:+.1%} 大盤距峰 {px_dd:+.1%}'
+        margin_bal_dd, margin_chg63, margin_px_dd = round(float(bal_dd), 4), round(float(chg63), 4), round(float(px_dd), 4)
 except Exception as e:
     margin_detail = f'融資段失敗 {type(e).__name__}'
     log_line(f'WARN:融資 regime 段失敗 {type(e).__name__}(本輪 UNKNOWN)')
@@ -257,7 +259,8 @@ except Exception as e:
 rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=cost_bp,
            contract=contract, vix_p=round(vix_p, 3) if vix_p == vix_p else None,
            ratio_p=round(ratio_p, 3) if ratio_p == ratio_p else None, G2=g2, G3=g3, vix_date=vix_date,
-           margin=margin_state, kr_dd=round(kr_dd, 4) if kr_dd is not None else None,
+           margin=margin_state, margin_bal_dd=margin_bal_dd, margin_chg63=margin_chg63,
+           margin_px_dd=margin_px_dd, kr_dd=round(kr_dd, 4) if kr_dd is not None else None,
            kr_level=kr_level,
            jp_dd=round(jp_dd, 4) if jp_dd is not None else None, jp_level=jp_level,
            fx_dd=round(fx_dd, 4) if fx_dd is not None else None, fx_level=fx_level)

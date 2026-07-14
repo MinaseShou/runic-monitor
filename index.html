@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RUNIC MONITOR — 五面旗</title>
+<style>
+:root{
+  color-scheme: light;
+  --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --border:rgba(11,11,11,.10); --baseline:#c3c2b7;
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --series1:#2a78d6; --track:#f0efec;
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --border:rgba(255,255,255,.10); --baseline:#383835;
+  --series1:#3987e5; --track:#2c2c2a;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --border:rgba(255,255,255,.10); --baseline:#383835;
+    --series1:#3987e5; --track:#2c2c2a;
+  }
+}
+*{box-sizing:border-box; margin:0}
+body{background:var(--page); color:var(--ink);
+  font:15px/1.55 system-ui,-apple-system,"Segoe UI","Noto Sans TC",sans-serif;
+  padding:16px; max-width:860px; margin:0 auto}
+header{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin:4px 0 14px}
+h1{font-size:20px; letter-spacing:.5px}
+.asof{color:var(--ink2); font-size:13px}
+#themeBtn{margin-left:auto; background:var(--surface); color:var(--ink2);
+  border:1px solid var(--border); border-radius:8px; padding:4px 10px; font-size:13px; cursor:pointer}
+.cards{display:grid; grid-template-columns:1fr; gap:10px}
+@media(min-width:640px){.cards{grid-template-columns:1fr 1fr}}
+.card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px 16px}
+.card.wide{grid-column:1/-1}
+.flag{display:flex; align-items:center; gap:8px; margin-bottom:6px}
+.flag .name{font-weight:600; font-size:14px}
+.badge{display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600;
+  padding:2px 9px; border-radius:99px; border:1.5px solid}
+.dot{width:8px; height:8px; border-radius:50%}
+.hero{font-size:30px; font-weight:700; line-height:1.15}
+.hero small{font-size:14px; font-weight:400; color:var(--ink2)}
+.sub{color:var(--ink2); font-size:13px; margin-top:2px}
+.sub b{color:var(--ink); font-weight:600}
+.gate{margin-top:10px}
+.gate .lab{display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-bottom:3px}
+.bar{position:relative; height:10px; background:var(--track); border-radius:5px; overflow:visible}
+.bar .fill{position:absolute; left:0; top:0; bottom:0; border-radius:5px 0 0 5px}
+.bar .tick{position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--baseline)}
+.bar .tick span{position:absolute; top:14px; left:-14px; font-size:10px; color:var(--muted); width:34px; text-align:center}
+.spark{margin-top:10px; position:relative}
+.spark svg{display:block; width:100%; height:52px}
+.spark .cap{font-size:11px; color:var(--muted); margin-top:2px}
+.tip{position:absolute; pointer-events:none; background:var(--ink); color:var(--page);
+  font-size:11px; padding:2px 7px; border-radius:6px; transform:translate(-50%,-135%); white-space:nowrap; display:none; z-index:5}
+footer{color:var(--muted); font-size:12px; margin:18px 4px 8px; line-height:1.7}
+.err{color:var(--critical); padding:20px}
+</style>
+</head>
+<body>
+<header>
+  <h1>RUNIC MONITOR</h1>
+  <span class="asof" id="asof">載入中…</span>
+  <button id="themeBtn">深/淺</button>
+</header>
+<div class="cards" id="cards"></div>
+<footer>
+  五面旗=context 非訊號(「市場層風險訊號永不疊加本書」)。跨關卡/翻轉時另以 GitHub Issue 推播。<br>
+  口徑:G2=VIX p252≥70% 或 VVIX/VIX ratio p252≤20%;保費=TXO 5-9DTE 95/90 put spread;台灣融資=上市(FinMind);韓國=KOFIA 信用融資(日頻);日本=JPX 委託買い残(週頻)+USDJPY 距 63 日高。
+</footer>
+<script>
+const btn = document.getElementById('themeBtn');
+btn.onclick = () => {
+  const cur = document.documentElement.dataset.theme ||
+    (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.runicTheme = next;
+  render();
+};
+if (localStorage.runicTheme) document.documentElement.dataset.theme = localStorage.runicTheme;
+
+const S = { good:'--good', warn:'--warn', serious:'--serious', critical:'--critical' };
+const GLYPH = { good:'●', warn:'▲', serious:'▲', critical:'■' };
+let DATA = null;
+
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function pct(x, d=1){ return x==null ? '—' : (x*100).toFixed(d)+'%'; }
+function badge(state, label){
+  const c = css(S[state]);
+  return `<span class="badge" style="border-color:${c};color:${c}"><span class="dot" style="background:${c}"></span>${GLYPH[state]} ${label}</span>`;
+}
+function gateBar(value, gates, min, fmt){
+  // value/gates 皆為負向深度(取絕對值畫進度);gates=[{at,lab}]
+  const W = Math.abs(min);
+  const fillPct = Math.min(100, Math.abs(Math.min(value,0)) / W * 100);
+  const lv = gates.filter(g => Math.abs(value) >= Math.abs(g.at)).length;
+  const color = css(lv >= 2 ? '--critical' : lv === 1 ? '--serious' : '--series1');
+  const ticks = gates.map(g =>
+    `<div class="tick" style="left:${Math.abs(g.at)/W*100}%"><span>${g.lab}</span></div>`).join('');
+  return `<div class="gate"><div class="lab"><span>${fmt}</span><span>現值 ${pct(value)}</span></div>
+    <div class="bar"><div class="fill" style="width:${fillPct}%;background:${color}"></div>${ticks}</div></div>`;
+}
+function spark(id, pts, fmt){
+  const el = document.getElementById(id);
+  if (!el || pts.length < 2) return;
+  const vals = pts.map(p => p.v), W = el.clientWidth || 300, H = 52, P = 4;
+  const mn = Math.min(...vals), mx = Math.max(...vals), rg = (mx-mn) || 1;
+  const X = i => P + i*(W-2*P)/(pts.length-1);
+  const Y = v => H-P - (v-mn)/rg*(H-2*P);
+  const path = pts.map((p,i) => `${i?'L':'M'}${X(i).toFixed(1)},${Y(p.v).toFixed(1)}`).join('');
+  const last = pts[pts.length-1];
+  el.querySelector('svg').innerHTML =
+    `<line x1="0" y1="${H-1}" x2="${W}" y2="${H-1}" stroke="${css('--grid')}"/>
+     <path d="${path}" fill="none" stroke="${css('--series1')}" stroke-width="2" stroke-linejoin="round"/>
+     <circle cx="${X(pts.length-1)}" cy="${Y(last.v)}" r="3.5" fill="${css('--series1')}"/>`;
+  const svg = el.querySelector('svg'), tip = el.querySelector('.tip');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.onmousemove = e => {
+    const r = svg.getBoundingClientRect();
+    const i = Math.round((e.clientX-r.left-P) / ((W-2*P)/(pts.length-1)));
+    if (i < 0 || i >= pts.length) return;
+    tip.style.display = 'block';
+    tip.style.left = (X(i)/W*100)+'%';
+    tip.style.top = (Y(pts[i].v))+'px';
+    tip.textContent = `${pts[i].d} ${fmt(pts[i].v)}`;
+  };
+  svg.onmouseleave = () => tip.style.display = 'none';
+}
+
+function render(){
+  if (!DATA) return;
+  const L = DATA.last, H = DATA.history || [];
+  const hp = k => H.filter(h => h[k] != null).map(h => ({ d:h.date, v:h[k] }));
+
+  // ① G2
+  const g2s = L.G3 ? 'critical' : L.G2 ? 'warn' : (L.G2 === null ? 'serious' : 'good');
+  const g2l = L.G3 ? 'G3 確認壓力' : L.G2 ? 'G2 壓力開啟' : (L.G2 === null ? 'UNKNOWN' : 'OFF');
+  // ② 保費
+  const recent = H.filter(h => h.cost_bp != null).slice(-20);
+  const armDays = (() => { let n=0; for (let i=recent.length-1; i>=0; i--){ if (recent[i].cost_bp <= 10) n++; else break; } return n; })();
+  const slowArmed = !!L.slow_armed;
+  // ③ 台灣
+  const twMap = { NORMAL:'good', WARNING:'serious', SPIRAL:'critical' };
+  const tws = twMap[L.margin] || 'serious';
+  // ④ 韓國 ⑤ 日本
+  const lvMap = l => l >= 2 ? 'critical' : l === 1 ? 'serious' : l === 0 ? 'good' : 'serious';
+
+  document.getElementById('asof').textContent =
+    `資料日 ${L.date}|每交易日 ~15:00 台北自動更新`;
+  document.getElementById('cards').innerHTML = `
+  <div class="card">
+    <div class="flag"><span class="name">① G2 壓力開關</span>${badge(g2s, g2l)}</div>
+    <div class="hero">${L.vix_p==null?'—':'p'+Math.round(L.vix_p*100)}<small> VIX 一年分位</small></div>
+    <div class="sub">VVIX/VIX ratio 分位 <b>${L.ratio_p==null?'—':'p'+Math.round(L.ratio_p*100)}</b>(門檻:VIX≥p70 或 ratio≤p20)</div>
+    <div class="spark" id="sp_vix"><svg></svg><div class="tip"></div><div class="cap">VIX 分位(近 ${hp('vix_p').length} 筆)</div></div>
+  </div>
+  <div class="card">
+    <div class="flag"><span class="name">② TXO 保費慢開關</span>${badge(slowArmed?'warn':'good', slowArmed?'🔔 上膛':'未上膛')}</div>
+    <div class="hero">${L.cost_bp==null?'—':L.cost_bp.toFixed(1)}<small> bp(${L.cost==null?'—':L.cost+' 點'},${L.contract||''})</small></div>
+    <div class="sub">上膛=連 20 日 ≤10bp,目前連續 <b>${armDays}</b>/20 日</div>
+    <div class="spark" id="sp_cost"><svg></svg><div class="tip"></div><div class="cap">保費 bp(近 ${hp('cost_bp').length} 筆)</div></div>
+  </div>
+  <div class="card">
+    <div class="flag"><span class="name">③ 台灣融資 regime</span>${badge(tws, L.margin||'UNKNOWN')}</div>
+    <div class="hero">${pct(L.margin_bal_dd)}<small> 餘額距峰</small></div>
+    <div class="sub">63 日 <b>${pct(L.margin_chg63)}</b>|大盤距峰 <b>${pct(L.margin_px_dd)}</b><br>SPIRAL=價 &lt;−10% 且(餘額 &lt;−15% 或 63 日 &lt;−10%)</div>
+  </div>
+  <div class="card">
+    <div class="flag"><span class="name">④ 韓國融資進度條</span>${badge(lvMap(L.kr_level), L.kr_level==null?'UNKNOWN':'lv'+L.kr_level)}</div>
+    <div class="hero">${pct(L.kr_dd)}<small> 距峰(KOFIA 日頻)</small></div>
+    ${L.kr_dd==null?'':gateBar(L.kr_dd, [{at:-0.10,lab:'−10%'},{at:-0.20,lab:'−20%'}], -0.30, '去槓桿進度')}
+    <div class="spark" id="sp_kr"><svg></svg><div class="tip"></div><div class="cap">距峰 %(近 ${hp('kr_dd').length} 筆)</div></div>
+  </div>
+  <div class="card wide">
+    <div class="flag"><span class="name">⑤ 日本槓桿+円 carry</span>${badge(lvMap(Math.max(L.jp_level??-1, L.fx_level??-1)), `JP lv${L.jp_level??'?'}/FX lv${L.fx_level??'?'}`)}</div>
+    <div class="hero">${pct(L.jp_dd)}<small> 買い残距峰(JPX 週頻)</small></div>
+    ${L.jp_dd==null?'':gateBar(L.jp_dd, [{at:-0.10,lab:'−10%'},{at:-0.20,lab:'−20%'}], -0.30, '日本去槓桿進度')}
+    ${L.fx_dd==null?'':gateBar(L.fx_dd, [{at:-0.03,lab:'−3%'},{at:-0.06,lab:'−6%'}], -0.09, 'USDJPY 距 63 日高(carry unwind,關卡未回測)')}
+  </div>`;
+
+  spark('sp_vix', hp('vix_p'), v => 'p'+Math.round(v*100));
+  spark('sp_cost', hp('cost_bp'), v => v.toFixed(1)+'bp');
+  spark('sp_kr', hp('kr_dd'), v => (v*100).toFixed(1)+'%');
+}
+
+fetch('state.json?t=' + Date.now())
+  .then(r => r.json())
+  .then(j => { DATA = j; render(); })
+  .catch(e => { document.getElementById('cards').innerHTML =
+    `<div class="err">state.json 載入失敗:${e}</div>`; });
+addEventListener('resize', () => render());
+</script>
+</body>
+</html>

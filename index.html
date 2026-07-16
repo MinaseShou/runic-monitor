@@ -60,6 +60,9 @@ h1{font-size:20px; letter-spacing:.5px}
 .tip{position:absolute; pointer-events:none; background:var(--ink); color:var(--page);
   font-size:11px; padding:2px 7px; border-radius:6px; transform:translate(-50%,-135%); white-space:nowrap; display:none; z-index:5}
 footer{color:var(--muted); font-size:12px; margin:18px 4px 8px; line-height:1.7}
+footer ul{margin:6px 0 10px; padding-left:18px}
+footer li{margin:5px 0}
+footer b{color:var(--ink)}
 .err{color:var(--critical); padding:20px}
 </style>
 </head>
@@ -71,9 +74,15 @@ footer{color:var(--muted); font-size:12px; margin:18px 4px 8px; line-height:1.7}
 </header>
 <div class="cards" id="cards"></div>
 <footer>
-  五面旗=context 非訊號(「市場層風險訊號永不疊加本書」)。跨關卡/翻轉時另以 GitHub Issue 推播。<br>
-  口徑:G2=VIX p252≥70% 或 VVIX/VIX ratio p252≤20%;保費=TXO 5-9DTE 95/90 put spread;台灣融資=上市(FinMind);韓國=KOFIA 信用融資(日頻);日本=JPX 委託買い残(週頻)+USDJPY 距 63 日高。<br>
-  「回撤」=距 252 觀測日(週頻=52 週)內高點,逐日僅用當日已知資訊、無前視,創新高時=0;「水位」=現值在近 3 年分佈的百分位——回撤答「跌多少」、水位答「堆多高」。<br>
+  <b>定位</b>:五面旗=context 非訊號(「市場層風險訊號永不疊加本書」——回測多次證實疊加對組合無益)。跨關卡/翻轉時另以 GitHub Issue 推播,日常不必盯這頁。
+  <ul>
+    <li><b>G2 壓力開關</b>(VIX p252≥70% 或 VVIX/VIX ratio p252≤20%)——意義:波動結構開始緊張=「聞到煙」。亮燈時:<b>不是買進訊號</b>(歷史樣本僅 2 次、事後挖掘),只代表轉入人工判讀——去看保費卡與持倉狀態;預設不加保險。</li>
+    <li><b>保費慢開關</b>(TXO 5-9DTE 95/90 put spread 成本)——意義:尾部保險的價格 regime,便宜得夠久才值得常備。亮燈(連 20 日≤10bp)時:依預註冊規則上膛 put spread(spike 止盈出場)。高於線時:不動作、不追價——危機前保費會先漲,「聞到煙才買」已證偽。</li>
+    <li><b>台灣融資</b>(上市信用餘額,FinMind)——意義:韓式「融資螺旋」偵測+慢頂前置哨(歷史四次慢頂,融資峰前置大盤峰 12-26 天;前置的是「頂」不是「崩」,急殺型無預警)。WARNING/SPIRAL 翻轉時:不改倉位;視為敘事下修訊號,提高對組合回撤階梯的警覺。</li>
+    <li><b>韓國 KOFIA</b>(信用融資餘額,日頻;關卡 −10%/−20%)——意義:同一道浪裡槓桿最脆的市場=斷裂順序的領先樣本。跨關時:核對台/日回撤是否跟進加速;本身不驅動任何倉位動作。</li>
+    <li><b>日本 JPX+USDJPY</b>(委託買い残週頻+円距 63 日高)——意義:日本引信=円 carry 平倉的 flash 型(2024-08 樣態),非融資慢頂型。円急升(fx 回撤走深)時:對 V 轉行情提高警覺,與台股高波動段一起讀。</li>
+  </ul>
+  <b>口徑</b>:「回撤」=距 252 觀測日(週頻=52 週)內高點,逐日僅用當日已知資訊、無前視,創新高時=0;「水位」=現值在近 3 年分佈的百分位——回撤答「跌多少」、水位答「堆多高」。<br>
   歷史曲線含 backfill.json 回填(build_backfill.py 生成);日本回填與水位=JPX 過去推移表「制度+一般合計」口徑,與 live 委託口徑差約 0.1%,僅供顯示。
 </footer>
 <script>

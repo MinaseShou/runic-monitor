@@ -185,7 +185,7 @@ function render(){
   </div>
   <div class="card">
     <div class="flag"><span class="name">③ 台灣融資 regime</span>${badge(tws, L.margin||'UNKNOWN')}</div>
-    <div class="hero">${pct(L.margin_bal_dd)}<small> 餘額回撤(距 252 日高)</small></div>
+    <div class="hero">${pct(L.margin_bal_dd)}<small> 餘額回撤(距 252 日高)${L.margin_date ? '・資料日 '+L.margin_date : ''}</small></div>
     <div class="sub">水位 <b>${L.margin_lvl_pct==null?'—':'p'+Math.round(L.margin_lvl_pct*100)}</b>(近 3 年)|63 日 <b>${pct(L.margin_chg63)}</b>|大盤回撤 <b>${pct(L.margin_px_dd)}</b><br>SPIRAL=價 &lt;−10% 且(餘額 &lt;−15% 或 63 日 &lt;−10%)</div>
     <div class="spark" id="sp_tw"><svg></svg><div class="tip"></div><div class="cap">餘額回撤 %(近 ${hp('margin_bal_dd').length} 筆)</div></div>
   </div>

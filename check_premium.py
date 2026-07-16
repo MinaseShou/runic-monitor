@@ -151,6 +151,7 @@ if not op.empty and not fu.empty:
 margin_state = None
 margin_detail = 'N/A'
 margin_bal_dd = margin_chg63 = margin_px_dd = margin_lvl_pct = None
+margin_date = None  # 融資資料日(TWSE 約 21:00 公布,下午班次拿到的是 T-1;22:30 晚班補當日)
 try:
     m = fetch_finmind('TaiwanStockTotalMarginPurchaseShortSale', '',
                       (today - pd.Timedelta(days=1150)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
@@ -176,6 +177,7 @@ try:
         margin_lvl_pct = round(float((bal_s.tail(756) <= bal_s.iloc[-1]).mean()), 3)
         margin_detail = f'餘額回撤 {bal_dd:+.1%} 水位 p{margin_lvl_pct:.0%} 63日 {chg63:+.1%} 大盤回撤 {px_dd:+.1%}'
         margin_bal_dd, margin_chg63, margin_px_dd = round(float(bal_dd), 4), round(float(chg63), 4), round(float(px_dd), 4)
+        margin_date = str(bal_s.index[-1].date())
 except Exception as e:
     margin_detail = f'融資段失敗 {type(e).__name__}'
     log_line(f'WARN:融資 regime 段失敗 {type(e).__name__}(本輪 UNKNOWN)')
@@ -286,7 +288,7 @@ rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=
            contract=contract, vix_p=round(vix_p, 3) if vix_p == vix_p else None,
            ratio_p=round(ratio_p, 3) if ratio_p == ratio_p else None, G2=g2, G3=g3, vix_date=vix_date,
            margin=margin_state, margin_bal_dd=margin_bal_dd, margin_chg63=margin_chg63,
-           margin_px_dd=margin_px_dd, margin_lvl_pct=margin_lvl_pct,
+           margin_px_dd=margin_px_dd, margin_lvl_pct=margin_lvl_pct, margin_date=margin_date,
            kr_dd=round(kr_dd, 4) if kr_dd is not None else None,
            kr_level=kr_level, kr_lvl_pct=kr_lvl_pct,
            jp_dd=round(jp_dd, 4) if jp_dd is not None else None, jp_level=jp_level,

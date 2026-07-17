@@ -143,9 +143,13 @@ if not op.empty and not fu.empty:
             if not snap.empty:
                 K_hi = min(snap.index, key=lambda k: abs(k - S * 0.95))
                 K_lo = min(snap.index, key=lambda k: abs(k - S * 0.90))
-                cost = float(snap.settlement_price.loc[K_hi] - snap.settlement_price.loc[K_lo])
-                cost_bp = round(cost / S * 1e4, 2)
-                contract = str(c0.contract_date.iloc[0])
+                # 腳位 guard(2026-07-17):大跌後週選鏈深 OTM 履約價未掛時,就近抓會變成窄價差假報價
+                # (實例:7/17 W4 只剩 40,200 → 40,600/40,200=400 點寬、11.7bp 假便宜)。
+                # 兩腳偏離口徑 >1.2% → 記 N/A 寧缺勿假;ARM 計數器本就跳過 None。
+                if abs(K_hi / S - 0.95) <= 0.012 and abs(K_lo / S - 0.90) <= 0.012:
+                    cost = float(snap.settlement_price.loc[K_hi] - snap.settlement_price.loc[K_lo])
+                    cost_bp = round(cost / S * 1e4, 2)
+                    contract = str(c0.contract_date.iloc[0])
 
 # ---------- ③ 融資 regime(韓式螺旋判別;margin_regime 案 2026-07-12:擇時判死、僅監測) ----------
 margin_state = None

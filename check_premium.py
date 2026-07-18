@@ -2,15 +2,18 @@
 # -*- coding: utf-8 -*-
 """TXO 保險+市場監測 v5——GitHub Actions 版(雙軌之雲端軌;Mac 正本=~/RUNiC_LOCAL/txo/monitor/check_premium.py)
 與 Mac 版差異僅三點:①通知=開 GitHub Issue(本機 fallback=osascript)②USDJPY 加 FRED fallback ③每輪重寫 README 儀表。
-五面旗:
+七面旗:
 ① G2 壓力開關(VIX p252>=70% 或 VVIX/VIX ratio p252<=20%;翻轉時通知)= 事故前上膛候選(探索性,2026-07-12 radar 相關性分析)
 ② 保費慢開關(cost_bp 連 20 個交易日 <=10bp)= 年代級可負擔
 ③ 融資 regime(NORMAL/WARNING/SPIRAL;韓式螺旋判別,margin_regime 案:擇時判死僅監測)
+   +上櫃/含櫃雙口徑並列(2026-07-17 翔核准;TPEx 官方源+state 快取增量;regime 判別維持上市口徑,含櫃=同門檻 shadow、翻轉通知)
 ④ 韓國融資進度條(KOFIA 日頻;回撤跨 -10%/-20% 通知)
 ⑤ 日本槓桿+USDJPY(JPX 週頻 mtseisan 委託買い残+FRED 匯率;回撤跨 -10%/-20%、円距 63 日高跨 -3%/-6% 通知;純描述未回測)
+⑥ 台指 RV 本土壓力旗(20日RV+單日range 百分位;lv1=RV p85 或 range p95、lv2=RV p95 或 range p99;升級通知;2026-07-17 翔核准,關卡未回測)
+⑦ VXN 科技 vol(CBOE;p252>=70% 亮一次;G2 美系口徑對亞洲/半導體去槓桿盲區補丁——2026-07-17 N=3 首 miss 案)
 口徑(2026-07-14 翔核定統一):「回撤」=距 252 觀測日(週頻=52 週)內高點,逐日僅用當日已知資訊、無前視;
 「水位」=現值在近 3 年(756 觀測)分佈的百分位——回撤答「跌多少」、水位答「堆多高」,兩面並列。
-資料:FinMind 免 token(TXO+TX)+CBOE 官方 CSV(VIX/VVIX)+KOFIA+JPX+FRED/Yahoo;fail=靜默 skip 留 log"""
+資料:FinMind 免 token(TXO+TX+TAIEX)+CBOE 官方 CSV(VIX/VVIX/VXN)+TPEx 官方+KOFIA+JPX+FRED/Yahoo;fail=靜默 skip 留 log"""
 import json, os, re, subprocess, sys, time, io
 from datetime import datetime
 from pathlib import Path
@@ -96,9 +99,10 @@ state = json.loads(STATE.read_text()) if STATE.exists() else {}
 hist = state.get('history', state if isinstance(state, list) else [])
 prev = state.get('last', {}) if isinstance(state, dict) else {}
 
-# ---------- ① G2/G3 壓力開關(CBOE) ----------
+# ---------- ① G2/G3 壓力開關(CBOE)+⑦ VXN ----------
 vix = fetch_cboe('VIX')
 vvix = fetch_cboe('VVIX')
+vxn = fetch_cboe('VXN')
 g2 = g3 = None
 vix_p = ratio_p = float('nan')
 if len(vix) and len(vvix):
@@ -115,6 +119,17 @@ if len(vix) and len(vvix):
 else:
     log_line('WARN:CBOE 抓取失敗,G2 本輪 UNKNOWN(不默認 OFF)')
     vix_date = None
+
+vxn_p = float('nan')
+vxn_hi = None
+vxn_detail = 'N/A'
+if len(vxn):
+    wv = vxn.tail(252)
+    vxn_p = float((wv <= wv.iloc[-1]).mean())
+    vxn_hi = bool(vxn_p >= 0.70)
+    vxn_detail = f'VXN {float(vxn.iloc[-1]):.1f} p{vxn_p:.0%}({vxn.index[-1].date()})'
+else:
+    log_line('WARN:VXN 抓取失敗(本輪 UNKNOWN)')
 
 # ---------- ② 保費(FinMind) ----------
 today = pd.Timestamp.today().normalize()
@@ -156,11 +171,11 @@ margin_state = None
 margin_detail = 'N/A'
 margin_bal_dd = margin_chg63 = margin_px_dd = margin_lvl_pct = None
 margin_date = None  # 融資資料日(TWSE 約 21:00 公布,下午班次拿到的是 T-1;22:30 晚班補當日)
+tj = fetch_finmind('TaiwanStockPrice', 'TAIEX',
+                   (today - pd.Timedelta(days=1150)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
 try:
     m = fetch_finmind('TaiwanStockTotalMarginPurchaseShortSale', '',
                       (today - pd.Timedelta(days=1150)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
-    tj = fetch_finmind('TaiwanStockPrice', 'TAIEX',
-                       (today - pd.Timedelta(days=1150)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
     if not m.empty and not tj.empty:
         bal_s = m[m['name'] == 'MarginPurchaseMoney'].set_index('date')['TodayBalance'].astype(float)
         bal_s.index = pd.to_datetime(bal_s.index)
@@ -185,6 +200,48 @@ try:
 except Exception as e:
     margin_detail = f'融資段失敗 {type(e).__name__}'
     log_line(f'WARN:融資 regime 段失敗 {type(e).__name__}(本輪 UNKNOWN)')
+
+# ---------- ③b 上櫃/含櫃雙口徑(TPEx 官方;FinMind 無上櫃 total;2026-07-17 翔核准並列) ----------
+tpex_hist = dict(state.get('tpex_hist', {})) if isinstance(state, dict) else {}
+tp_bal_dd = tp_chg63 = tp_lvl_pct = None
+margin_all = None
+all_bal_dd = all_chg63 = None
+tp_detail = 'N/A'
+try:
+    need = [d for d in pd.bdate_range(end=today, periods=10)
+            if d.strftime('%Y-%m-%d') not in tpex_hist]
+    for d in need:
+        rt = requests.get('https://www.tpex.org.tw/www/zh-tw/margin/balance',
+                          params={'date': d.strftime('%Y/%m/%d'), 'response': 'json'},
+                          headers=UA, timeout=30)
+        ts_ = rt.json().get('tables', [])
+        summ = ts_[0].get('summary', []) if ts_ else []
+        fin = [row for row in summ if any('融資金' in str(c) for c in row)]
+        if fin and str(fin[0][6]).strip():  # 非交易日無融資金列,自然 skip(假日每輪重試,10 次×1s 可忽略)
+            tpex_hist[d.strftime('%Y-%m-%d')] = int(str(fin[0][6]).replace(',', '')) * 1000  # 仟元→元
+        time.sleep(1)
+    tpex_hist = dict(sorted(tpex_hist.items())[-1200:])
+    tp_s = pd.Series(tpex_hist, dtype=float)
+    tp_s.index = pd.to_datetime(tp_s.index)
+    tp_s = tp_s.sort_index()
+    if len(tp_s) > 260:
+        tp_bal_dd = round(float(tp_s.iloc[-1] / tp_s.rolling(252, min_periods=200).max().iloc[-1] - 1), 4)
+        tp_chg63 = round(float(tp_s.iloc[-1] / tp_s.iloc[-64] - 1), 4)
+        tp_lvl_pct = round(float((tp_s.tail(756) <= tp_s.iloc[-1]).mean()), 3)
+        tp_detail = f'上櫃回撤 {tp_bal_dd:+.1%} 水位 p{tp_lvl_pct:.0%} 63日 {tp_chg63:+.1%}'
+        if margin_state:  # 上市段成功才有 bal_s/margin_px_dd;含櫃 px 條件沿用大盤(加權為主體)
+            allb = (bal_s + tp_s).dropna()
+            if len(allb) > 260:
+                all_bal_dd = round(float(allb.iloc[-1] / allb.rolling(252, min_periods=200).max().iloc[-1] - 1), 4)
+                all_chg63 = round(float(allb.iloc[-1] / allb.iloc[-64] - 1), 4)
+                delev_a = (all_bal_dd < -0.15) or (all_chg63 < -0.10)
+                margin_all = 'SPIRAL' if (delev_a and margin_px_dd < -0.10) else ('WARNING' if delev_a else 'NORMAL')
+                tp_detail += f';含櫃回撤 {all_bal_dd:+.1%} 63日 {all_chg63:+.1%}={margin_all}'
+    else:
+        tp_detail = f'快取 {len(tp_s)} 日未達 260,待回補'
+except Exception as e:
+    tp_detail = f'TPEx 段失敗 {type(e).__name__}'
+    log_line(f'WARN:TPEx 上櫃融資段失敗 {type(e).__name__}(本輪 UNKNOWN)')
 
 # ---------- ④ 韓國融資進度條(KOFIA FreeSIS 日頻;codex 摸通 2026-07-13) ----------
 kr_dd = None
@@ -287,6 +344,26 @@ try:
 except Exception as e:
     log_line(f'WARN:USDJPY 段失敗 {type(e).__name__}(本輪 UNKNOWN)')
 
+# ---------- ⑥ 台指 RV 本土壓力旗(TAIEX 日線;2026-07-17 翔核准;G2 亞洲盲區補丁,關卡未回測、context 非訊號) ----------
+rv20 = rv_pct = range_pct = None
+tw_stress = None
+rv_detail = 'N/A'
+try:
+    if not tj.empty:
+        pxd = tj.set_index('date')[['max', 'min', 'close']].astype(float)
+        pxd.index = pd.to_datetime(pxd.index)
+        pxd = pxd.sort_index()
+        rv_s = pxd['close'].pct_change().rolling(20).std() * (252 ** 0.5)
+        rng_s = (pxd['max'] - pxd['min']) / pxd['close'].shift(1)
+        rv20 = round(float(rv_s.iloc[-1]), 4)
+        rv_pct = round(float((rv_s.dropna().tail(756) <= rv_s.iloc[-1]).mean()), 3)
+        range_pct = round(float((rng_s.dropna().tail(756) <= rng_s.iloc[-1]).mean()), 3)
+        tw_stress = 2 if (rv_pct >= 0.95 or range_pct >= 0.99) else (1 if (rv_pct >= 0.85 or range_pct >= 0.95) else 0)
+        rv_detail = f'20日RV {rv20:.0%} p{rv_pct:.0%};單日range p{range_pct:.0%}({pxd.index[-1].date()})'
+except Exception as e:
+    rv_detail = f'RV 段失敗 {type(e).__name__}'
+    log_line(f'WARN:台指 RV 段失敗 {type(e).__name__}(本輪 UNKNOWN)')
+
 # ---------- 狀態更新與通知(翻轉才響) ----------
 rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=cost_bp,
            contract=contract, vix_p=round(vix_p, 3) if vix_p == vix_p else None,
@@ -297,7 +374,11 @@ rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=
            kr_level=kr_level, kr_lvl_pct=kr_lvl_pct,
            jp_dd=round(jp_dd, 4) if jp_dd is not None else None, jp_level=jp_level,
            jp_lvl_pct=jp_lvl_pct,
-           fx_dd=round(fx_dd, 4) if fx_dd is not None else None, fx_level=fx_level)
+           fx_dd=round(fx_dd, 4) if fx_dd is not None else None, fx_level=fx_level,
+           vxn_p=round(vxn_p, 3) if vxn_p == vxn_p else None, vxn_hi=vxn_hi,
+           tp_bal_dd=tp_bal_dd, tp_chg63=tp_chg63, tp_lvl_pct=tp_lvl_pct,
+           margin_all=margin_all, all_bal_dd=all_bal_dd, all_chg63=all_chg63,
+           rv20=rv20, rv_pct=rv_pct, range_pct=range_pct, tw_stress=tw_stress)
 hist = [h for h in hist if h.get('date') != rec['date']]
 hist = sorted(hist + [rec], key=lambda h: h['date'])[-120:]
 
@@ -316,21 +397,34 @@ if margin_state and prev_m and margin_state != prev_m:
     icon = {'SPIRAL': '🔴', 'WARNING': '🟠', 'NORMAL': '🟢'}[margin_state]
     notify(f'{icon} 融資 regime:{prev_m}→{margin_state}', margin_detail)
 
+prev_ma = prev.get('margin_all')
+if margin_all and prev_ma and margin_all != prev_ma:
+    icon = {'SPIRAL': '🔴', 'WARNING': '🟠', 'NORMAL': '🟢'}[margin_all]
+    notify(f'{icon} 含櫃融資 regime:{prev_ma}→{margin_all}', tp_detail)
+
+if vxn_hi and not prev.get('vxn_hi'):
+    notify('🟡 VXN 科技 vol 亮(G2 美系盲區補丁)', f'{vxn_detail};G2={g2}。亞洲/半導體系壓力可能先現於此(N=3 首 miss 案)。')
+
+if tw_stress is not None and tw_stress > (prev.get('tw_stress') or 0):
+    notify('🟠 台指 RV 本土壓力旗升級', f'lv{tw_stress}:{rv_detail}(G2 亞洲盲區補丁;關卡未回測)')
+
 recent = [h['cost_bp'] for h in hist[-ARM_DAYS:] if h.get('cost_bp') is not None]
 slow_armed = len(recent) >= ARM_DAYS and all(b <= ARM_BP for b in recent)
 if slow_armed and not prev.get('slow_armed'):
     notify('🔔 保費慢開關上膛', f'連 {ARM_DAYS} 交易日 <= {ARM_BP}bp。見登記簿 spike-exit 案。')
 
-STATE.write_text(json.dumps(dict(history=hist, last=dict(rec, slow_armed=slow_armed), jp_hist=jp_hist),
+STATE.write_text(json.dumps(dict(history=hist, last=dict(rec, slow_armed=slow_armed), jp_hist=jp_hist,
+                                 tpex_hist=tpex_hist),
                             ensure_ascii=False, indent=1))
 log_line(f"{rec['date']} {contract or '-'} cost={cost_str} | G2={g2} G3={g3} "
-         f"(vixp={vix_p:.2f} ratiop={ratio_p:.2f}) slow_armed={slow_armed} | margin={margin_state}({margin_detail}) | KR={kr_detail} | JP={jp_detail} {fx_detail}")
+         f"(vixp={vix_p:.2f} ratiop={ratio_p:.2f}) slow_armed={slow_armed} | margin={margin_state}({margin_detail}) "
+         f"| TPEX={tp_detail} | KR={kr_detail} | JP={jp_detail} {fx_detail} | RV={rv_detail} lv{tw_stress} | {vxn_detail} hi={vxn_hi}")
 
 # ---------- README 儀表(GitHub 首頁即儀表) ----------
 def lamp(cond_bad, cond_warn):
     return '🔴' if cond_bad else ('🟡' if cond_warn else '🟢')
 
-readme = f"""# RUNiC Monitor(五面旗,每交易日 ~15:00 台北自動更新)
+readme = f"""# RUNiC Monitor(七面旗,每交易日 ~15:00 台北自動更新)
 
 **📊 儀表板:https://minaseshou.github.io/runic-monitor/**
 
@@ -340,11 +434,15 @@ readme = f"""# RUNiC Monitor(五面旗,每交易日 ~15:00 台北自動更新)
 |---|---|---|
 | ① G2 壓力開關 | {lamp(g3, g2)} {'G3' if g3 else ('G2 ON' if g2 else 'OFF') if g2 is not None else 'UNKNOWN'} | VIX p{vix_p:.0%} / ratio p{ratio_p:.0%}({vix_date or 'N/A'}) |
 | ② TXO 保費慢開關 | {'🔔 上膛' if slow_armed else '🟢 未上膛'} | {cost_str},門檻=連 {ARM_DAYS} 日 ≤{ARM_BP:.0f}bp |
-| ③ 台灣融資 regime | {lamp(margin_state == 'SPIRAL', margin_state == 'WARNING')} {margin_state or 'UNKNOWN'} | {margin_detail} |
+| ③ 台灣融資 regime | {lamp(margin_state == 'SPIRAL', margin_state == 'WARNING')} {margin_state or 'UNKNOWN'} | 上市:{margin_detail} |
+| ③b 上櫃/含櫃並列 | {lamp(margin_all == 'SPIRAL', margin_all == 'WARNING') if margin_all else '⚪'} {margin_all or 'N/A'} | {tp_detail} |
 | ④ 韓國融資進度條 | {lamp(kr_level == 2, kr_level == 1) if kr_level is not None else '⚪'} lv{kr_level if kr_level is not None else '?'} | {kr_detail} |
 | ⑤ 日本槓桿+円 | {lamp((jp_level or 0) == 2 or (fx_level or 0) == 2, (jp_level or 0) == 1 or (fx_level or 0) == 1)} lv{jp_level if jp_level is not None else '?'}/{fx_level if fx_level is not None else '?'} | {jp_detail};{fx_detail} |
+| ⑥ 台指 RV 壓力旗 | {lamp(tw_stress == 2, tw_stress == 1) if tw_stress is not None else '⚪'} lv{tw_stress if tw_stress is not None else '?'} | {rv_detail} |
+| ⑦ VXN 科技 vol | {'🟡 ON' if vxn_hi else ('🟢 OFF' if vxn_hi is not None else '⚪ UNKNOWN')} | {vxn_detail},門檻 p252≥70% |
 
 口徑:回撤=距 252 觀測日(週頻=52 週)內高點(無前視);水位=近 3 年分佈百分位。
+③b/⑥/⑦ 為 2026-07-17 新增(G2 美系口徑盲區補丁);regime 判別維持上市口徑,含櫃=同門檻 shadow;⑥⑦ 關卡未回測。
 跨關卡/翻轉時自動開 Issue(=手機推播)。全歷史見 [log.md](log.md) 與 git 歷史。
 定位=context 非訊號(「市場層風險訊號永不疊加本書」鐵律);雙軌之雲端軌,Mac launchd 為備援。
 """

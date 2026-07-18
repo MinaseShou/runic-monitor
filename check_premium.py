@@ -203,7 +203,7 @@ except Exception as e:
 
 # ---------- ③b 上櫃/含櫃雙口徑(TPEx 官方;FinMind 無上櫃 total;2026-07-17 翔核准並列) ----------
 tpex_hist = dict(state.get('tpex_hist', {})) if isinstance(state, dict) else {}
-tp_bal_dd = tp_chg63 = tp_lvl_pct = None
+tp_bal_dd = tp_chg63 = tp_lvl_pct = tp_px_dd = None
 margin_all = None
 all_bal_dd = all_chg63 = None
 tp_detail = 'N/A'
@@ -229,6 +229,16 @@ try:
         tp_chg63 = round(float(tp_s.iloc[-1] / tp_s.iloc[-64] - 1), 4)
         tp_lvl_pct = round(float((tp_s.tail(756) <= tp_s.iloc[-1]).mean()), 3)
         tp_detail = f'上櫃回撤 {tp_bal_dd:+.1%} 水位 p{tp_lvl_pct:.0%} 63日 {tp_chg63:+.1%}'
+        try:  # 櫃買指數回撤(與 ③ 大盤回撤同口徑;顯示用,不入判別——含櫃 SPIRAL 價格條件維持大盤)
+            tpi = fetch_finmind('TaiwanStockPrice', 'TPEx',
+                                (today - pd.Timedelta(days=1150)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
+            tpi_s = tpi.set_index('date')['close'].astype(float)
+            tpi_s.index = pd.to_datetime(tpi_s.index)
+            tpi_s = tpi_s.sort_index()
+            tp_px_dd = round(float(tpi_s.iloc[-1] / tpi_s.rolling(252, min_periods=200).max().iloc[-1] - 1), 4)
+            tp_detail += f' 櫃買回撤 {tp_px_dd:+.1%}'
+        except Exception as e2:
+            log_line(f'WARN:櫃買指數段失敗 {type(e2).__name__}(本輪 UNKNOWN)')
         if margin_state:  # 上市段成功才有 bal_s/margin_px_dd;含櫃 px 條件沿用大盤(加權為主體)
             allb = (bal_s + tp_s).dropna()
             if len(allb) > 260:
@@ -377,7 +387,7 @@ rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=
            fx_dd=round(fx_dd, 4) if fx_dd is not None else None, fx_level=fx_level,
            vxn_p=round(vxn_p, 3) if vxn_p == vxn_p else None, vxn_hi=vxn_hi,
            vxn=round(float(vxn.iloc[-1]), 2) if len(vxn) else None,
-           tp_bal_dd=tp_bal_dd, tp_chg63=tp_chg63, tp_lvl_pct=tp_lvl_pct,
+           tp_bal_dd=tp_bal_dd, tp_chg63=tp_chg63, tp_lvl_pct=tp_lvl_pct, tp_px_dd=tp_px_dd,
            margin_all=margin_all, all_bal_dd=all_bal_dd, all_chg63=all_chg63,
            rv20=rv20, rv_pct=rv_pct, range_pct=range_pct, tw_stress=tw_stress)
 hist = [h for h in hist if h.get('date') != rec['date']]

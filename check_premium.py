@@ -376,6 +376,7 @@ rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=
            jp_lvl_pct=jp_lvl_pct,
            fx_dd=round(fx_dd, 4) if fx_dd is not None else None, fx_level=fx_level,
            vxn_p=round(vxn_p, 3) if vxn_p == vxn_p else None, vxn_hi=vxn_hi,
+           vxn=round(float(vxn.iloc[-1]), 2) if len(vxn) else None,
            tp_bal_dd=tp_bal_dd, tp_chg63=tp_chg63, tp_lvl_pct=tp_lvl_pct,
            margin_all=margin_all, all_bal_dd=all_bal_dd, all_chg63=all_chg63,
            rv20=rv20, rv_pct=rv_pct, range_pct=range_pct, tw_stress=tw_stress)

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RUNIC MONITOR — 五面旗</title>
+<title>RUNIC MONITOR — 七面旗</title>
 <style>
 :root{
   color-scheme: light;
@@ -74,11 +74,14 @@ footer b{color:var(--ink)}
 </header>
 <div class="cards" id="cards"></div>
 <footer>
-  <b>定位</b>:五面旗=context 非訊號(「市場層風險訊號永不疊加本書」——回測多次證實疊加對組合無益)。跨關卡/翻轉時另以 GitHub Issue 推播,日常不必盯這頁。
+  <b>定位</b>:七面旗=context 非訊號(「市場層風險訊號永不疊加本書」——回測多次證實疊加對組合無益)。跨關卡/翻轉時另以 GitHub Issue 推播,日常不必盯這頁。
   <ul>
     <li><b>G2 壓力開關</b>(VIX p252≥70% 或 VVIX/VIX ratio p252≤20%)——意義:波動結構開始緊張=「聞到煙」。亮燈時:<b>不是買進訊號</b>(歷史樣本僅 2 次、事後挖掘),只代表轉入人工判讀——去看保費卡與持倉狀態;預設不加保險。</li>
     <li><b>保費慢開關</b>(TXO 5-9DTE 95/90 put spread 成本)——意義:尾部保險的價格 regime,便宜得夠久才值得常備。亮燈(連 20 日≤10bp)時:依預註冊規則上膛 put spread(spike 止盈出場)。高於線時:不動作、不追價——危機前保費會先漲,「聞到煙才買」已證偽。</li>
     <li><b>台灣融資</b>(上市信用餘額,FinMind)——意義:韓式「融資螺旋」偵測+慢頂前置哨(歷史四次慢頂,融資峰前置大盤峰 12-26 天;前置的是「頂」不是「崩」,急殺型無預警)。WARNING/SPIRAL 翻轉時:不改倉位;視為敘事下修訊號,提高對組合回撤階梯的警覺。</li>
+    <li><b>上櫃/含櫃並列</b>(TPEx 官方,2026-07-17 新增)——意義:上櫃=融資投機端,斷頭常先於上市(7/17 上櫃單日 −6.7% vs 上市 −4.5%);單一口徑可翻結論(K7 教訓)。regime 判別仍以上市為準,含櫃=同門檻 shadow,含櫃翻轉時同樣推播。</li>
+    <li><b>台指 RV 壓力旗</b>(TAIEX 日線,2026-07-17 新增)——意義:G2 用美系 VIX,對亞洲/半導體引爆的壓力結構性遲鈍(2026-07-17 首次 miss);本旗直接量台指自身實現波動+單日振幅。lv 升級時:與 G2 並讀;關卡未回測,僅 context。</li>
+    <li><b>VXN</b>(CBOE,2026-07-17 新增)——意義:科技系隱含 vol=美系口徑內離台股 beta 最近的一支;亮=科技端壓力已進美股定價,可先於 VIX 綜合口徑。p252≥70% 亮一次推播;僅 context。</li>
     <li><b>韓國 KOFIA</b>(信用融資餘額,日頻;關卡 −10%/−20%)——意義:同一道浪裡槓桿最脆的市場=斷裂順序的領先樣本。跨關時:核對台/日回撤是否跟進加速;本身不驅動任何倉位動作。</li>
     <li><b>日本 JPX+USDJPY</b>(委託買い残週頻+円距 63 日高)——意義:日本引信=円 carry 平倉的 flash 型(2024-08 樣態),非融資慢頂型。円急升(fx 回撤走深)時:對 V 轉行情提高警覺,與台股高波動段一起讀。</li>
   </ul>
@@ -178,16 +181,34 @@ function render(){
     <div class="spark" id="sp_vix"><svg></svg><div class="tip"></div><div class="cap">VIX 分位(近 ${hp('vix_p').length} 筆)</div></div>
   </div>
   <div class="card">
+    <div class="flag"><span class="name">⑦ VXN 科技 vol</span>${badge(L.vxn_hi ? 'warn' : (L.vxn_hi === false ? 'good' : 'serious'), L.vxn_hi ? 'ON' : (L.vxn_hi === false ? 'OFF' : 'UNKNOWN'))}</div>
+    <div class="hero">${L.vxn_p==null?'—':'p'+Math.round(L.vxn_p*100)}<small> VXN 一年分位${L.vxn==null?'':'(現值 '+L.vxn+')'}</small></div>
+    <div class="sub">門檻 p252≥70% 亮一次|G2 美系口徑盲區補丁(NDX/半導體系,2026-07-17 miss 案)</div>
+    <div class="spark" id="sp_vxn"><svg></svg><div class="tip"></div><div class="cap">VXN 分位(近 ${hp('vxn_p').length} 筆)</div></div>
+  </div>
+  <div class="card">
     <div class="flag"><span class="name">② TXO 保費慢開關</span>${badge(slowArmed?'warn':'good', slowArmed?'🔔 上膛':'未上膛')}</div>
     <div class="hero">${L.cost_bp==null?'—':L.cost_bp.toFixed(1)}<small> bp(${L.cost==null?'—':L.cost+' 點'},${L.contract||''})</small></div>
     <div class="sub">上膛=連 20 日 ≤10bp,目前連續 <b>${armDays}</b>/20 日</div>
     <div class="spark" id="sp_cost"><svg></svg><div class="tip"></div><div class="cap">保費 bp(近 ${hp('cost_bp').length} 筆)</div></div>
   </div>
   <div class="card">
+    <div class="flag"><span class="name">⑥ 台指 RV 壓力旗</span>${badge(lvMap(L.tw_stress), L.tw_stress==null?'UNKNOWN':'lv'+L.tw_stress)}</div>
+    <div class="hero">${pct(L.rv20,0)}<small> 20 日年化 RV(TAIEX)</small></div>
+    <div class="sub">RV 分位 <b>${L.rv_pct==null?'—':'p'+Math.round(L.rv_pct*100)}</b>|單日 range 分位 <b>${L.range_pct==null?'—':'p'+Math.round(L.range_pct*100)}</b>(近 3 年)<br>lv1=RV≥p85 或 range≥p95;lv2=RV≥p95 或 range≥p99(關卡未回測)</div>
+    <div class="spark" id="sp_rv"><svg></svg><div class="tip"></div><div class="cap">20 日 RV(近 ${hp('rv20').length} 筆)</div></div>
+  </div>
+  <div class="card">
     <div class="flag"><span class="name">③ 台灣融資 regime</span>${badge(tws, L.margin||'UNKNOWN')}</div>
     <div class="hero">${pct(L.margin_bal_dd)}<small> 餘額回撤(距 252 日高)${L.margin_date ? '・資料日 '+L.margin_date : ''}</small></div>
     <div class="sub">水位 <b>${L.margin_lvl_pct==null?'—':'p'+Math.round(L.margin_lvl_pct*100)}</b>(近 3 年)|63 日 <b>${pct(L.margin_chg63)}</b>|大盤回撤 <b>${pct(L.margin_px_dd)}</b><br>SPIRAL=價 &lt;−10% 且(餘額 &lt;−15% 或 63 日 &lt;−10%)</div>
     <div class="spark" id="sp_tw"><svg></svg><div class="tip"></div><div class="cap">餘額回撤 %(近 ${hp('margin_bal_dd').length} 筆)</div></div>
+  </div>
+  <div class="card">
+    <div class="flag"><span class="name">③b 上櫃/含櫃並列</span>${badge(twMap[L.margin_all] || 'serious', L.margin_all || 'N/A')}</div>
+    <div class="hero">${pct(L.tp_bal_dd)}<small> 上櫃餘額回撤(距 252 日高)</small></div>
+    <div class="sub">上櫃水位 <b>${L.tp_lvl_pct==null?'—':'p'+Math.round(L.tp_lvl_pct*100)}</b>|上櫃 63 日 <b>${pct(L.tp_chg63)}</b><br>含櫃回撤 <b>${pct(L.all_bal_dd)}</b>|含櫃 63 日 <b>${pct(L.all_chg63)}</b>(判別維持上市口徑,含櫃=同門檻 shadow)</div>
+    <div class="spark" id="sp_tp"><svg></svg><div class="tip"></div><div class="cap">上櫃餘額回撤 %(近 ${hp('tp_bal_dd').length} 筆)</div></div>
   </div>
   <div class="card">
     <div class="flag"><span class="name">④ 韓國融資進度條</span>${badge(lvMap(L.kr_level), L.kr_level==null?'UNKNOWN':'lv'+L.kr_level)}</div>
@@ -209,8 +230,11 @@ function render(){
   </div>`;
 
   spark('sp_vix', hp('vix_p'), v => 'p'+Math.round(v*100));
+  spark('sp_vxn', hp('vxn_p'), v => 'p'+Math.round(v*100));
   spark('sp_cost', hp('cost_bp'), v => v.toFixed(1)+'bp');
+  spark('sp_rv', hp('rv20'), v => (v*100).toFixed(1)+'%');
   spark('sp_tw', hp('margin_bal_dd'), v => (v*100).toFixed(1)+'%');
+  spark('sp_tp', hp('tp_bal_dd'), v => (v*100).toFixed(1)+'%');
   spark('sp_kr', hp('kr_dd'), v => (v*100).toFixed(1)+'%');
   spark('sp_jp', hp('jp_dd'), v => (v*100).toFixed(1)+'%');
   spark('sp_fx', hp('fx_dd'), v => (v*100).toFixed(1)+'%');

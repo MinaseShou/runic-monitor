@@ -58,6 +58,8 @@ ratio = df.VVIX / df.VIX
 vix_p = df.VIX.rolling(252).apply(lambda w: (w <= w.iloc[-1]).mean())
 ratio_p = ratio.rolling(252).apply(lambda w: (w <= w.iloc[-1]).mean())
 emit('vix_p', vix_p.tail(252)); emit('ratio_p', ratio_p.tail(252))
+vxn = fetch_cboe('VXN')   # ⑦(2026-07-18 曾一次性補進 json 未入生成器→2026-07-21 重生時被蓋,今納入真源)
+emit('vxn_p', vxn.rolling(252).apply(lambda w: (w <= w.iloc[-1]).mean()).tail(252), digits=3)
 
 # ---------- ② 台灣融資 ----------
 m = fetch_finmind('TaiwanStockTotalMarginPurchaseShortSale', '',
@@ -71,6 +73,17 @@ px.index = pd.to_datetime(px.index); px = px.sort_index()
 emit('margin_bal_dd', (bal / bal.rolling(252, min_periods=200).max() - 1).tail(252))
 emit('margin_chg63', (bal / bal.shift(63) - 1).tail(252))
 emit('margin_px_dd', (px / px.rolling(252, min_periods=200).max() - 1).tail(252))
+
+# ---------- ②a ⑥RV+③b 上櫃(同 2026-07-18 部署口徑;上櫃源=state.json tpex_hist 快取) ----------
+emit('rv20', (px.pct_change().rolling(20).std() * (252 ** 0.5)).tail(252))
+try:
+    st = json.loads((HERE / 'state.json').read_text())
+    tp = pd.Series(st.get('tpex_hist', {}), dtype=float)
+    tp.index = pd.to_datetime(tp.index)
+    tp = tp.sort_index()
+    emit('tp_bal_dd', (tp / tp.rolling(252, min_periods=200).max() - 1).tail(252))
+except Exception as e:
+    print(f'tp_bal_dd skip {type(e).__name__}')
 
 # ---------- ②b 崩盤雙軸(⑧⑨;與監測同口徑:trailing 756 分位) ----------
 mny = tj.set_index('date')['Trading_money'].astype(float)

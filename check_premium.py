@@ -257,6 +257,56 @@ except Exception as e:
     tp_detail = f'TPEx 段失敗 {type(e).__name__}'
     log_line(f'WARN:TPEx 上櫃融資段失敗 {type(e).__name__}(本輪 UNKNOWN)')
 
+# ---------- ③c 全市場融資維持率 proxy(2026-07-21 翔核准;抄底條件統計案:雷瓦汀 reports 同日) ----------
+# 口徑=Σ(個股融資餘額張×1000×收盤價)/(上市+上櫃融資金額);官方四端點;與 FinLab 研究口徑逐位對帳通過。
+# 統計線(認知資產非訊號):下穿160 無資訊/150 有肉/140 肥區(+120日 +20.0%/勝率91%,n=11);
+# 回升上穿150(曾<145)=斷頭潮尾聲確認式(+20日勝率83%);載體=距 130% 制度追繳線的絕對緩衝,非歷史分位。
+maint_hist = dict(state.get('maint_hist', {})) if isinstance(state, dict) else {}
+maint = None
+maint_detail = 'N/A'
+try:
+    if margin_date:
+        D = pd.Timestamp(margin_date)
+        key = D.strftime('%Y-%m-%d')
+        if key not in maint_hist:
+            def _num(s):
+                s = str(s).replace(',', '').strip()
+                try:
+                    return float(s)
+                except ValueError:
+                    return None
+            jm = requests.get('https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN',
+                              params={'date': D.strftime('%Y%m%d'), 'selectType': 'ALL', 'response': 'json'},
+                              headers=UA, timeout=60).json()
+            agg_ = {r[0]: r for r in jm['tables'][0]['data']}
+            dsii = _num(agg_['融資金額(仟元)'][5]) * 1000
+            mrows = {r[0].strip(): _num(r[6]) for r in jm['tables'][1]['data']}
+            ji = requests.get('https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX',
+                              params={'date': D.strftime('%Y%m%d'), 'type': 'ALLBUT0999', 'response': 'json'},
+                              headers=UA, timeout=120).json()
+            ctab = [t for t in ji['tables'] if '每日收盤行情' in t.get('title', '')][0]
+            csii = {r[0].strip(): _num(r[8]) for r in ctab['data']}
+            jt = requests.get('https://www.tpex.org.tw/www/zh-tw/margin/balance',
+                              params={'date': D.strftime('%Y/%m/%d'), 'response': 'json'},
+                              headers=UA, timeout=30).json()
+            t3_ = jt['tables'][0]
+            summ3 = [row for row in t3_['summary'] if any('融資金' in str(c) for c in row)]
+            dotc = _num(summ3[0][6]) * 1000
+            orow = {r[0].strip(): _num(r[6]) for r in t3_['data']}
+            jq = requests.get('https://www.tpex.org.tw/www/zh-tw/afterTrading/dailyQuotes',
+                              params={'date': D.strftime('%Y/%m/%d'), 'response': 'json'},
+                              headers=UA, timeout=60).json()
+            cotc = {r[0].strip(): _num(r[2]) for r in jq['tables'][0]['data']}
+            mv_ = (sum(sh * 1000 * csii[c] for c, sh in mrows.items() if sh and csii.get(c))
+                   + sum(sh * 1000 * cotc[c] for c, sh in orow.items() if sh and cotc.get(c)))
+            maint_hist[key] = round(mv_ / (dsii + dotc) * 100, 2)
+        maint_hist = dict(sorted(maint_hist.items())[-1200:])
+        maint = maint_hist.get(D.strftime('%Y-%m-%d'))
+        if maint is not None:
+            maint_detail = f'全市場維持率 {maint:.1f}%({D.strftime("%Y-%m-%d")})'
+except Exception as e:
+    log_line(f'WARN:維持率段失敗 {type(e).__name__}(本輪 UNKNOWN)')
+
 # ---------- ④ 韓國融資進度條(KOFIA FreeSIS 日頻;codex 摸通 2026-07-13) ----------
 kr_dd = None
 kr_level = None
@@ -429,7 +479,8 @@ rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=
            margin_all=margin_all, all_bal_dd=all_bal_dd, all_chg63=all_chg63,
            rv20=rv20, rv_pct=rv_pct, range_pct=range_pct, tw_stress=tw_stress,
            fuel_turn_pct=fuel_turn_pct, fuel_mg20=fuel_mg20, fuel_lag=fuel_lag, fuel_on=fuel_on,
-           vol60=turb_vol60, vol60_pct=turb_vol60_pct, count60=turb_count60, turb_on=turb_on)
+           vol60=turb_vol60, vol60_pct=turb_vol60_pct, count60=turb_count60, turb_on=turb_on,
+           maint=maint)
 hist = [h for h in hist if h.get('date') != rec['date']]
 hist = sorted(hist + [rec], key=lambda h: h['date'])[-120:]
 
@@ -468,13 +519,25 @@ if turb_on is not None and prev.get('turb_on') is not None and turb_on != prev.g
     notify('🟠 湍流旗亮(崩盤雙軸)' if turb_on else '🟢 湍流旗熄(崩盤雙軸)',
            f'{turb_detail}。「會崩的頂是顛簸的頂」(vol60 p≥90;描述卡非訊號)。')
 
+prev_maint = prev.get('maint')
+if maint is not None and prev_maint is not None:
+    _stats = {160: '+120日 +4.1%/勝率68%(淺,無資訊)', 150: '+120日 +10.5%/勝率73%', 140: '+120日 +20.0%/勝率91%(n=11,肥區)'}
+    for th_, icon_ in ((160, '🟡'), (150, '🟠'), (140, '🔴')):
+        if maint < th_ <= prev_maint:
+            notify(f'{icon_} 維持率下穿 {th_}(抄底統計線)',
+                   f'{maint_detail};歷史同觸發 TAIEX {_stats[th_]}——認知資產非訊號,配崩型讀(陰跌型平庸)。')
+    _ms = pd.Series(maint_hist).astype(float)
+    if maint > 150 >= prev_maint and len(_ms) > 21 and (_ms.tail(21).iloc[:-1] < 145).any():
+        notify('🟢 維持率回升上穿 150(斷頭潮尾聲確認式)',
+               f'{maint_detail};歷史此式 +20日 +4.1%/勝率83%——認知資產非訊號。')
+
 recent = [h['cost_bp'] for h in hist[-ARM_DAYS:] if h.get('cost_bp') is not None]
 slow_armed = len(recent) >= ARM_DAYS and all(b <= ARM_BP for b in recent)
 if slow_armed and not prev.get('slow_armed'):
     notify('🔔 保費慢開關上膛', f'連 {ARM_DAYS} 交易日 <= {ARM_BP}bp。見登記簿 spike-exit 案。')
 
 STATE.write_text(json.dumps(dict(history=hist, last=dict(rec, slow_armed=slow_armed), jp_hist=jp_hist,
-                                 tpex_hist=tpex_hist),
+                                 tpex_hist=tpex_hist, maint_hist=maint_hist),
                             ensure_ascii=False, indent=1))
 log_line(f"{rec['date']} {contract or '-'} cost={cost_str} | G2={g2} G3={g3} "
          f"(vixp={vix_p:.2f} ratiop={ratio_p:.2f}) slow_armed={slow_armed} | margin={margin_state}({margin_detail}) "
@@ -497,6 +560,7 @@ readme = f"""# RUNiC Monitor(九面旗,每交易日 ~15:00 台北自動更新)
 | ② TXO 保費慢開關 | {'🔔 上膛' if slow_armed else '🟢 未上膛'} | {cost_str},門檻=連 {ARM_DAYS} 日 ≤{ARM_BP:.0f}bp |
 | ③ 台灣融資 regime | {lamp(margin_state == 'SPIRAL', margin_state == 'WARNING')} {margin_state or 'UNKNOWN'} | 上市:{margin_detail} |
 | ③b 上櫃/含櫃並列 | {lamp(margin_all == 'SPIRAL', margin_all == 'WARNING') if margin_all else '⚪'} {margin_all or 'N/A'} | {tp_detail} |
+| ③c 全市場維持率 | {('🔴' if maint < 140 else '🟠' if maint < 150 else '🟡' if maint < 160 else '🟢') if maint is not None else '⚪'} {f'{maint:.1f}%' if maint is not None else 'UNKNOWN'} | {maint_detail},統計線 160/150/140、回升上穿150=尾聲確認 |
 | ④ 韓國融資進度條 | {lamp(kr_level == 2, kr_level == 1) if kr_level is not None else '⚪'} lv{kr_level if kr_level is not None else '?'} | {kr_detail} |
 | ⑤ 日本槓桿+円 | {lamp((jp_level or 0) == 2 or (fx_level or 0) == 2, (jp_level or 0) == 1 or (fx_level or 0) == 1)} lv{jp_level if jp_level is not None else '?'}/{fx_level if fx_level is not None else '?'} | {jp_detail};{fx_detail} |
 | ⑥ 台指 RV 壓力旗 | {lamp(tw_stress == 2, tw_stress == 1) if tw_stress is not None else '⚪'} lv{tw_stress if tw_stress is not None else '?'} | {rv_detail} |

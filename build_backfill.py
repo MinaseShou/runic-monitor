@@ -85,6 +85,18 @@ try:
 except Exception as e:
     print(f'tp_bal_dd skip {type(e).__name__}')
 
+# ---------- ②a2 全市場維持率(③c;seed=2026-07-21 FinLab 研究口徑一次性全史,與官方源逐位對帳通過;live 由 state.maint_hist 續) ----------
+seed = pd.read_csv(HERE / 'maint_seed.csv', index_col=0)['maint']
+seed.index = pd.to_datetime(seed.index)
+try:
+    stt = json.loads((HERE / 'state.json').read_text())
+    mh = pd.Series(stt.get('maint_hist', {}), dtype=float)
+    mh.index = pd.to_datetime(mh.index)
+    seed = pd.concat([seed, mh]).groupby(level=0).last().sort_index()
+except Exception as e:
+    print(f'maint state merge skip {type(e).__name__}')
+emit('maint', seed.tail(252), digits=2)
+
 # ---------- ②b 崩盤雙軸(⑧⑨;與監測同口徑:trailing 756 分位) ----------
 mny = tj.set_index('date')['Trading_money'].astype(float)
 mny.index = pd.to_datetime(mny.index); mny = mny.sort_index()

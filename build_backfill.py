@@ -5,6 +5,7 @@
 - vix_p/ratio_p:CBOE 全史 → 每日 p252 分位,回填 252 交易日
 - cost_bp:FinMind TXO 逐日回算(監測同邏輯:5-9DTE 週約 95/90 put spread),回填 ~120 交易日(API 重)
 - margin_bal_dd/chg63/px_dd:FinMind 上市融資+TAIEX,回填 252 交易日
+- fuel_turn_pct/vol60_pct:⑧⑨ 崩盤雙軸(量能 20 日均 p756、60 日年化波動 p756),回填 252 交易日(2026-07-21 新增)
 - kr_dd:KOFIA 日頻 3 年,回撤=距 252 觀測日高(與監測同口徑)
 - jp_dd:JPX 過去推移表(2013+ 檔,東名兩市場制度+一般合計買残金額;⚠️與 live jp_hist 的 mtseisan 委託口徑差 ~0.1%,僅供顯示),距 52 週峰,回填 ~104 週
 - fx_dd:Yahoo JPY=X 2 年,距 63 日高
@@ -62,7 +63,7 @@ emit('vix_p', vix_p.tail(252)); emit('ratio_p', ratio_p.tail(252))
 m = fetch_finmind('TaiwanStockTotalMarginPurchaseShortSale', '',
                   (today - pd.Timedelta(days=800)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
 tj = fetch_finmind('TaiwanStockPrice', 'TAIEX',
-                   (today - pd.Timedelta(days=800)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
+                   (today - pd.Timedelta(days=1900)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))  # 1900=供雙軸 252 筆回填各自帶足 756 分位窗
 bal = m[m['name'] == 'MarginPurchaseMoney'].set_index('date')['TodayBalance'].astype(float)
 bal.index = pd.to_datetime(bal.index); bal = bal.sort_index()
 px = tj.set_index('date')['close'].astype(float)
@@ -70,6 +71,14 @@ px.index = pd.to_datetime(px.index); px = px.sort_index()
 emit('margin_bal_dd', (bal / bal.rolling(252, min_periods=200).max() - 1).tail(252))
 emit('margin_chg63', (bal / bal.shift(63) - 1).tail(252))
 emit('margin_px_dd', (px / px.rolling(252, min_periods=200).max() - 1).tail(252))
+
+# ---------- ②b 崩盤雙軸(⑧⑨;與監測同口徑:trailing 756 分位) ----------
+mny = tj.set_index('date')['Trading_money'].astype(float)
+mny.index = pd.to_datetime(mny.index); mny = mny.sort_index()
+t20 = mny.rolling(20).mean()
+emit('fuel_turn_pct', t20.rolling(756, min_periods=250).rank(pct=True).tail(252), digits=3)
+v60 = px.pct_change().rolling(60).std() * (252 ** 0.5)
+emit('vol60_pct', v60.rolling(756, min_periods=250).rank(pct=True).tail(252), digits=3)
 
 # ---------- ③ 韓國 KOFIA ----------
 payload = {"dmSearch": {"tmpV1": "D", "tmpV40": "01",

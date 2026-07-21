@@ -11,6 +11,10 @@
 ⑤ 日本槓桿+USDJPY(JPX 週頻 mtseisan 委託買い残+FRED 匯率;回撤跨 -10%/-20%、円距 63 日高跨 -3%/-6% 通知;純描述未回測)
 ⑥ 台指 RV 本土壓力旗(20日RV+單日range 百分位;lv1=RV p85 或 range p95、lv2=RV p95 或 range p99;升級通知;2026-07-17 翔核准,關卡未回測)
 ⑦ VXN 科技 vol(CBOE;p252>=70% 亮一次;G2 美系口徑對亞洲/半導體去槓桿盲區補丁——2026-07-17 N=3 首 miss 案)
+⑧ 燃料旗(2026-07-21 翔核准;崩盤研究 Phase1/3:量能 20 日均 p756>=0.90 且融資 20 日 >=+5%=高燃料;
+   歷史佔時 ~11%、日層級 60 日內遇快崩率 46% vs base 27%=描述非預測;門檻 in-sample)
+⑨ 湍流旗(同案;TAIEX 60 日年化波動 p756>=0.90=顛簸;崩盤首腿峰前湍流 AUC 0.658/0.778 雙對照存活;
+   「會崩的頂是顛簸的頂」;2020 COVID 型外生零前兆=兩軸共同盲區)
 口徑(2026-07-14 翔核定統一):「回撤」=距 252 觀測日(週頻=52 週)內高點,逐日僅用當日已知資訊、無前視;
 「水位」=現值在近 3 年(756 觀測)分佈的百分位——回撤答「跌多少」、水位答「堆多高」,兩面並列。
 資料:FinMind 免 token(TXO+TX+TAIEX)+CBOE 官方 CSV(VIX/VVIX/VXN)+TPEx 官方+KOFIA+JPX+FRED/Yahoo;fail=靜默 skip 留 log"""
@@ -172,7 +176,7 @@ margin_detail = 'N/A'
 margin_bal_dd = margin_chg63 = margin_px_dd = margin_lvl_pct = None
 margin_date = None  # 融資資料日(TWSE 約 21:00 公布,下午班次拿到的是 T-1;22:30 晚班補當日)
 tj = fetch_finmind('TaiwanStockPrice', 'TAIEX',
-                   (today - pd.Timedelta(days=1150)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
+                   (today - pd.Timedelta(days=1400)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))  # 1400=供 ⑨ vol60 的 756 日分位
 try:
     m = fetch_finmind('TaiwanStockTotalMarginPurchaseShortSale', '',
                       (today - pd.Timedelta(days=1150)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
@@ -374,6 +378,40 @@ except Exception as e:
     rv_detail = f'RV 段失敗 {type(e).__name__}'
     log_line(f'WARN:台指 RV 段失敗 {type(e).__name__}(本輪 UNKNOWN)')
 
+# ---------- ⑧⑨ 崩盤雙軸:燃料+湍流(2026-07-21 翔核准;崩盤研究 Phase1/3 蛛絲馬跡;描述卡非預測器) ----------
+fuel_turn_pct = fuel_mg20 = fuel_lag = None
+fuel_on = None
+turb_vol60 = turb_vol60_pct = turb_count60 = None
+turb_on = None
+fuel_detail = turb_detail = 'N/A'
+try:
+    if not tj.empty:
+        pxc = tj.set_index('date')['close'].astype(float)
+        pxc.index = pd.to_datetime(pxc.index)
+        pxc = pxc.sort_index()
+        mny = tj.set_index('date')['Trading_money'].astype(float)
+        mny.index = pd.to_datetime(mny.index)
+        mny = mny.sort_index()
+        t20 = mny.rolling(20).mean().dropna()
+        fuel_turn_pct = round(float((t20.tail(756) <= t20.iloc[-1]).mean()), 3)
+        r_s = pxc.pct_change()
+        v60 = (r_s.rolling(60).std() * (252 ** 0.5)).dropna()
+        turb_vol60 = round(float(v60.iloc[-1]), 4)
+        turb_vol60_pct = round(float((v60.tail(756) <= v60.iloc[-1]).mean()), 3)
+        turb_count60 = int((r_s.tail(60) <= -0.02).sum())
+        turb_on = bool(turb_vol60_pct >= 0.90)
+        turb_detail = f'vol60 {turb_vol60:.0%} p{turb_vol60_pct:.0%};60日內≥2%下跳 {turb_count60} 次'
+        if margin_state and len(bal_s) > 121:  # ③ 段成功才有 bal_s
+            fuel_mg20 = round(float(bal_s.iloc[-1] / bal_s.iloc[-21] - 1), 4)
+            w121 = bal_s.tail(121).reset_index(drop=True)
+            fuel_lag = int(len(w121) - 1 - int(w121.idxmax()))
+            fuel_on = bool(fuel_turn_pct >= 0.90 and fuel_mg20 >= 0.05)
+            fuel_detail = f'量能 p{fuel_turn_pct:.0%};融資20日 {fuel_mg20:+.1%};融資峰距今 {fuel_lag} 日'
+        else:
+            fuel_detail = f'量能 p{fuel_turn_pct:.0%};融資段 UNKNOWN'
+except Exception as e:
+    log_line(f'WARN:崩盤雙軸段失敗 {type(e).__name__}(本輪 UNKNOWN)')
+
 # ---------- 狀態更新與通知(翻轉才響) ----------
 rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=cost_bp,
            contract=contract, vix_p=round(vix_p, 3) if vix_p == vix_p else None,
@@ -389,7 +427,9 @@ rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=
            vxn=round(float(vxn.iloc[-1]), 2) if len(vxn) else None,
            tp_bal_dd=tp_bal_dd, tp_chg63=tp_chg63, tp_lvl_pct=tp_lvl_pct, tp_px_dd=tp_px_dd,
            margin_all=margin_all, all_bal_dd=all_bal_dd, all_chg63=all_chg63,
-           rv20=rv20, rv_pct=rv_pct, range_pct=range_pct, tw_stress=tw_stress)
+           rv20=rv20, rv_pct=rv_pct, range_pct=range_pct, tw_stress=tw_stress,
+           fuel_turn_pct=fuel_turn_pct, fuel_mg20=fuel_mg20, fuel_lag=fuel_lag, fuel_on=fuel_on,
+           vol60=turb_vol60, vol60_pct=turb_vol60_pct, count60=turb_count60, turb_on=turb_on)
 hist = [h for h in hist if h.get('date') != rec['date']]
 hist = sorted(hist + [rec], key=lambda h: h['date'])[-120:]
 
@@ -419,6 +459,15 @@ if vxn_hi and not prev.get('vxn_hi'):
 if tw_stress is not None and tw_stress > (prev.get('tw_stress') or 0):
     notify('🟠 台指 RV 本土壓力旗升級', f'lv{tw_stress}:{rv_detail}(G2 亞洲盲區補丁;關卡未回測)')
 
+if fuel_on is not None and prev.get('fuel_on') is not None and fuel_on != prev.get('fuel_on'):
+    notify('🟠 燃料旗亮(崩盤雙軸)' if fuel_on else '🟢 燃料旗熄(崩盤雙軸)',
+           (f'進入高燃料狀態:{fuel_detail}。歷史佔時 ~11%、60日內遇快崩率 46% vs base 27%——脆弱度描述非訊號。'
+            if fuel_on else f'退出高燃料狀態:{fuel_detail}。'))
+
+if turb_on is not None and prev.get('turb_on') is not None and turb_on != prev.get('turb_on'):
+    notify('🟠 湍流旗亮(崩盤雙軸)' if turb_on else '🟢 湍流旗熄(崩盤雙軸)',
+           f'{turb_detail}。「會崩的頂是顛簸的頂」(vol60 p≥90;描述卡非訊號)。')
+
 recent = [h['cost_bp'] for h in hist[-ARM_DAYS:] if h.get('cost_bp') is not None]
 slow_armed = len(recent) >= ARM_DAYS and all(b <= ARM_BP for b in recent)
 if slow_armed and not prev.get('slow_armed'):
@@ -429,13 +478,14 @@ STATE.write_text(json.dumps(dict(history=hist, last=dict(rec, slow_armed=slow_ar
                             ensure_ascii=False, indent=1))
 log_line(f"{rec['date']} {contract or '-'} cost={cost_str} | G2={g2} G3={g3} "
          f"(vixp={vix_p:.2f} ratiop={ratio_p:.2f}) slow_armed={slow_armed} | margin={margin_state}({margin_detail}) "
-         f"| TPEX={tp_detail} | KR={kr_detail} | JP={jp_detail} {fx_detail} | RV={rv_detail} lv{tw_stress} | {vxn_detail} hi={vxn_hi}")
+         f"| TPEX={tp_detail} | KR={kr_detail} | JP={jp_detail} {fx_detail} | RV={rv_detail} lv{tw_stress} | {vxn_detail} hi={vxn_hi} "
+         f"| 燃料={fuel_on}({fuel_detail}) 湍流={turb_on}({turb_detail})")
 
 # ---------- README 儀表(GitHub 首頁即儀表) ----------
 def lamp(cond_bad, cond_warn):
     return '🔴' if cond_bad else ('🟡' if cond_warn else '🟢')
 
-readme = f"""# RUNiC Monitor(七面旗,每交易日 ~15:00 台北自動更新)
+readme = f"""# RUNiC Monitor(九面旗,每交易日 ~15:00 台北自動更新)
 
 **📊 儀表板:https://minaseshou.github.io/runic-monitor/**
 
@@ -451,9 +501,12 @@ readme = f"""# RUNiC Monitor(七面旗,每交易日 ~15:00 台北自動更新)
 | ⑤ 日本槓桿+円 | {lamp((jp_level or 0) == 2 or (fx_level or 0) == 2, (jp_level or 0) == 1 or (fx_level or 0) == 1)} lv{jp_level if jp_level is not None else '?'}/{fx_level if fx_level is not None else '?'} | {jp_detail};{fx_detail} |
 | ⑥ 台指 RV 壓力旗 | {lamp(tw_stress == 2, tw_stress == 1) if tw_stress is not None else '⚪'} lv{tw_stress if tw_stress is not None else '?'} | {rv_detail} |
 | ⑦ VXN 科技 vol | {'🟡 ON' if vxn_hi else ('🟢 OFF' if vxn_hi is not None else '⚪ UNKNOWN')} | {vxn_detail},門檻 p252≥70% |
+| ⑧ 燃料旗(崩盤雙軸) | {'🟠 ON' if fuel_on else ('🟢 OFF' if fuel_on is not None else '⚪ UNKNOWN')} | {fuel_detail},門檻=量能 p≥90 且融資20日≥+5% |
+| ⑨ 湍流旗(崩盤雙軸) | {'🟠 ON' if turb_on else ('🟢 OFF' if turb_on is not None else '⚪ UNKNOWN')} | {turb_detail},門檻=vol60 p≥90 |
 
 口徑:回撤=距 252 觀測日(週頻=52 週)內高點(無前視);水位=近 3 年分佈百分位。
 ③b/⑥/⑦ 為 2026-07-17 新增(G2 美系口徑盲區補丁);regime 判別維持上市口徑,含櫃=同門檻 shadow;⑥⑦ 關卡未回測。
+⑧⑨ 為 2026-07-21 新增(崩盤研究 Phase 1/3 雙軸蛛絲馬跡):燃料=投機槓桿加到頂(高燃料時 60 日內遇快崩率 46% vs base 27%)、湍流=顛簸的頂才崩;皆為描述非預測,外生零前兆型(2020 COVID 式)是共同盲區,解讀詳儀表頁。
 跨關卡/翻轉時自動開 Issue(=手機推播)。全歷史見 [log.md](log.md) 與 git 歷史。
 定位=context 非訊號(「市場層風險訊號永不疊加本書」鐵律);雙軌之雲端軌,Mac launchd 為備援。
 """

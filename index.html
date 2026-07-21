@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RUNIC MONITOR — 七面旗</title>
+<title>RUNIC MONITOR — 九面旗</title>
 <style>
 :root{
   color-scheme: light;
@@ -82,6 +82,8 @@ footer b{color:var(--ink)}
     <li><b>上櫃/含櫃並列</b>(TPEx 官方,2026-07-17 新增)——意義:上櫃=融資投機端,斷頭常先於上市(7/17 上櫃單日 −6.7% vs 上市 −4.5%);單一口徑可翻結論(K7 教訓)。regime 判別仍以上市為準,含櫃=同門檻 shadow,含櫃翻轉時同樣推播。</li>
     <li><b>台指 RV 壓力旗</b>(TAIEX 日線,2026-07-17 新增)——意義:G2 用美系 VIX,對亞洲/半導體引爆的壓力結構性遲鈍(2026-07-17 首次 miss);本旗直接量台指自身實現波動+單日振幅。lv 升級時:與 G2 並讀;關卡未回測,僅 context。</li>
     <li><b>VXN</b>(CBOE,2026-07-17 新增)——意義:科技系隱含 vol=美系口徑內離台股 beta 最近的一支;亮=科技端壓力已進美股定價,可先於 VIX 綜合口徑。p252≥70% 亮一次推播;僅 context。</li>
+    <li><b>燃料旗</b>(2026-07-21 新增,崩盤研究 Phase 1/3)——白話:會崩的頂,現場是「人聲鼎沸+槓桿全滿」——量能燒到近三年最熱一檔、融資餘額創高創到價格峰旁邊。技術:27 年 35 件快崩首腿,量能分位 AUC 0.774/0.698(雙對照)、「融資峰距今」中位 0 天 vs 沒崩的頂 47 天(全案最 robust 特徵)。亮燈時:<b>不是賣出訊號</b>(高燃料 89% 的日子 60 日內也沒崩、歷史五輪預警系統全數判死),只代表市場處於「衝擊轉化為快崩」的高脆弱狀態——中小型外生衝擊打在高燃料上 3/3 全崩、打在低燃料上 2/20(Fisher p=0.006)。誠實 caveat:與「牛市後期」共同因子難分離,是描述不是機制。</li>
+    <li><b>湍流旗</b>(同案)——白話:看上漲的「路面品質」——會崩的頂,峰前 60 日已經開始顛(出現過幾次 2% 級下跳、波動墊高);絲滑上去的頂不崩。技術:vol60 AUC 0.658/0.778(對「同樣是波段頂但沒崩」的嚴格對照=全案最強讀值),35/35 件崩盤 peak→觸發都有前導段(中位 18 交易日);與燃料軸近正交(ρ=0.12)=獨立的第二條軸。與 ⑥ RV 旗的分工:⑥ 量 20 日急震(壓力已爆),本旗量 60 日底噪(頂的品質)。共同盲區:外生零前兆型(2020 COVID 峰=分位 39/零下跳照樣崩)——這也是「預警系統」被判死、這兩面旗只當描述卡的原因。</li>
     <li><b>韓國 KOFIA</b>(信用融資餘額,日頻;關卡 −10%/−20%)——意義:同一道浪裡槓桿最脆的市場=斷裂順序的領先樣本。跨關時:核對台/日回撤是否跟進加速;本身不驅動任何倉位動作。</li>
     <li><b>日本 JPX+USDJPY</b>(委託買い残週頻+円距 63 日高)——意義:日本引信=円 carry 平倉的 flash 型(2024-08 樣態),非融資慢頂型。円急升(fx 回撤走深)時:對 V 轉行情提高警覺,與台股高波動段一起讀。</li>
   </ul>
@@ -211,6 +213,18 @@ function render(){
     <div class="spark" id="sp_tp"><svg></svg><div class="tip"></div><div class="cap">上櫃餘額回撤 %(近 ${hp('tp_bal_dd').length} 筆)</div></div>
   </div>
   <div class="card">
+    <div class="flag"><span class="name">⑧ 燃料旗(崩盤雙軸)</span>${badge(L.fuel_on ? 'serious' : (L.fuel_on === false ? 'good' : 'serious'), L.fuel_on ? 'ON 高燃料' : (L.fuel_on === false ? 'OFF' : 'UNKNOWN'))}</div>
+    <div class="hero">${L.fuel_turn_pct==null?'—':'p'+Math.round(L.fuel_turn_pct*100)}<small> 量能 20 日均・近 3 年分位</small></div>
+    <div class="sub">融資 20 日變速 <b>${pct(L.fuel_mg20)}</b>|融資峰距今 <b>${L.fuel_lag==null?'—':L.fuel_lag+' 日'}</b><br>ON=量能 p≥90 且融資 20 日≥+5%(高燃料;歷史佔時 ~11%,60 日內遇快崩率 46% vs base 27%)</div>
+    <div class="spark" id="sp_fuel"><svg></svg><div class="tip"></div><div class="cap">量能分位(近 ${hp('fuel_turn_pct').length} 筆)</div></div>
+  </div>
+  <div class="card">
+    <div class="flag"><span class="name">⑨ 湍流旗(崩盤雙軸)</span>${badge(L.turb_on ? 'serious' : (L.turb_on === false ? 'good' : 'serious'), L.turb_on ? 'ON 顛簸' : (L.turb_on === false ? 'OFF' : 'UNKNOWN'))}</div>
+    <div class="hero">${pct(L.vol60,0)}<small> 60 日年化波動(TAIEX)</small></div>
+    <div class="sub">分位 <b>${L.vol60_pct==null?'—':'p'+Math.round(L.vol60_pct*100)}</b>(近 3 年)|60 日內 ≥2% 下跳 <b>${L.count60==null?'—':L.count60+' 次'}</b><br>ON=vol60 p≥90(「會崩的頂是顛簸的頂」;⑥ 量 20 日急震、本旗量 60 日底噪)</div>
+    <div class="spark" id="sp_turb"><svg></svg><div class="tip"></div><div class="cap">vol60 分位(近 ${hp('vol60_pct').length} 筆)</div></div>
+  </div>
+  <div class="card">
     <div class="flag"><span class="name">④ 韓國融資進度條</span>${badge(lvMap(L.kr_level), L.kr_level==null?'UNKNOWN':'lv'+L.kr_level)}</div>
     <div class="hero">${pct(L.kr_dd)}<small> 回撤・距 252 日高(KOFIA 日頻)</small></div>
     <div class="sub">水位 <b>${L.kr_lvl_pct==null?'—':'p'+Math.round(L.kr_lvl_pct*100)}</b>(近 3 年)</div>
@@ -234,6 +248,8 @@ function render(){
   spark('sp_cost', hp('cost_bp'), v => v.toFixed(1)+'bp');
   spark('sp_rv', hp('rv20'), v => (v*100).toFixed(1)+'%');
   spark('sp_tw', hp('margin_bal_dd'), v => (v*100).toFixed(1)+'%');
+  spark('sp_fuel', hp('fuel_turn_pct'), v => 'p'+Math.round(v*100));
+  spark('sp_turb', hp('vol60_pct'), v => 'p'+Math.round(v*100));
   spark('sp_tp', hp('tp_bal_dd'), v => (v*100).toFixed(1)+'%');
   spark('sp_kr', hp('kr_dd'), v => (v*100).toFixed(1)+'%');
   spark('sp_jp', hp('jp_dd'), v => (v*100).toFixed(1)+'%');

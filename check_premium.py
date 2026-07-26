@@ -331,7 +331,7 @@ try:
         kr_kosdaq = pd.Series({pd.Timestamp(str(r['TMPV1'])): float(str(r['TMPV4']).replace(',', '')) for r in ds if r.get('TMPV4')}).sort_index()
         kq_dd = float(kr_kosdaq.iloc[-1] / kr_kosdaq.tail(252).max() - 1)
         kr_detail = f'合計回撤 {kr_dd:+.1%} 水位 p{kr_lvl_pct:.0%}(KOSDAQ 段 {kq_dd:+.1%})最新 {kr.iloc[-1]/1e6/1e6:.1f} 兆'
-        prev_lv = (state.get('last', {}) or {}).get('kr_level', 0)
+        prev_lv = (state.get('last', {}) or {}).get('kr_level', 0) or 0
         lv = 2 if kr_dd < -0.20 else (1 if kr_dd < -0.10 else 0)
         if lv > prev_lv:
             notify('🇰🇷 韓國融資去槓桿跨關卡', f'{"回撤破 -20%" if lv==2 else "回撤破 -10%"}:{kr_detail}')

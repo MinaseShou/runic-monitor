@@ -321,7 +321,9 @@ try:
           "Origin": "https://freesis.kofia.or.kr",
           "Referer": "https://freesis.kofia.or.kr/stat/FreeSIS.do?parentDivId=MSIS10000000000000&serviceId=STATSCU0100000070"}
     rk = requests.post('https://freesis.kofia.or.kr/meta/getMetaDataList.do', json=payload, headers=kh, timeout=60)
-    ds = rk.json().get('ds1', [])
+    # 2026-07-23 起 KOFIA 免登入 API 將大額欄位尾碼遮罩為 '#'(非法 JSON number → JSONDecodeError)。
+    # 前導位數仍在:'#'→'0' 重建下界,對回撤/水位指標相對誤差 <1e-6;遮罩若撤除此替換為 no-op。
+    ds = json.loads(rk.text.replace('#', '0')).get('ds1', [])
     kr = pd.Series({pd.Timestamp(str(r['TMPV1'])): float(str(r['TMPV2']).replace(',', '')) for r in ds if r.get('TMPV2')}).sort_index()
     if len(kr) > 100:
         kr_dd = float(kr.iloc[-1] / kr.tail(252).max() - 1)

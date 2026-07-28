@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """TXO 保險+市場監測 v5——GitHub Actions 版(雙軌之雲端軌;Mac 正本=~/RUNiC_LOCAL/txo/monitor/check_premium.py)
 與 Mac 版差異僅三點:①通知=開 GitHub Issue(本機 fallback=osascript)②USDJPY 加 FRED fallback ③每輪重寫 README 儀表。
-七面旗:
+九面旗(+⑧b 子維):
 ① G2 壓力開關(VIX p252>=70% 或 VVIX/VIX ratio p252<=20%;翻轉時通知)= 事故前上膛候選(探索性,2026-07-12 radar 相關性分析)
 ② 保費慢開關(cost_bp 連 20 個交易日 <=10bp)= 年代級可負擔
 ③ 融資 regime(NORMAL/WARNING/SPIRAL;韓式螺旋判別,margin_regime 案:擇時判死僅監測)
@@ -15,6 +15,11 @@
    歷史佔時 ~11%、日層級 60 日內遇快崩率 46% vs base 27%=描述非預測;門檻 in-sample)
 ⑨ 湍流旗(同案;TAIEX 60 日年化波動 p756>=0.90=顛簸;崩盤首腿峰前湍流 AUC 0.658/0.778 雙對照存活;
    「會崩的頂是顛簸的頂」;2020 COVID 型外生零前兆=兩軸共同盲區)
+⑧b 集中度(2026-07-28 翔核准;燃料旗第三維):Q5(季動能最強 5 分位)季漲中位 p>=0.90 且產業 HHI p>=0.90。
+   量能/融資描述「有多少錢在燒」,本維描述「錢集中燒在哪」。月頻,Mac 端 monthly_concentration.py
+   預算 concentration.json、本檔只讀(無 FinLab 依賴,讀不到→UNKNOWN)。史上僅 2026-05/06 亮過。
+   🔴描述卡非預測器、不得調曝險:11 項過熱指標對次月動能反轉全部不顯著,且該資訊即使已知也不可交易
+   (反轉 L/S 毛 -1.70%/月、七年虧六年);受「市場層風險訊號永不疊加本書」鐵律約束(0 勝 5 敗)。
 口徑(2026-07-14 翔核定統一):「回撤」=距 252 觀測日(週頻=52 週)內高點,逐日僅用當日已知資訊、無前視;
 「水位」=現值在近 3 年(756 觀測)分佈的百分位——回撤答「跌多少」、水位答「堆多高」,兩面並列。
 資料:FinMind 免 token(TXO+TX+TAIEX)+CBOE 官方 CSV(VIX/VVIX/VXN)+TPEx 官方+KOFIA+JPX+FRED/Yahoo;fail=靜默 skip 留 log"""
@@ -464,6 +469,38 @@ try:
 except Exception as e:
     log_line(f'WARN:崩盤雙軸段失敗 {type(e).__name__}(本輪 UNKNOWN)')
 
+# ---------- ⑧b 燃料旗第三維:集中度(2026-07-28 翔核准)----------
+# 【為什麼】原燃料旗兩維(量能/融資)描述「有多少錢在燒」,不描述「錢集中燒在哪」。
+#   2026 這波融資分位 5 月就滿了(1.000),真正異常的是動能最強組季漲中位堆到 +101.78%、
+#   前三大產業佔比 63.2%(皆史上 100 分位)。本維補上這塊。
+# 【資料】月頻,由 Mac 端 monthly_concentration.py(需 FinLab)預算並 commit concentration.json;
+#   本檔只讀 json、無 FinLab 依賴,讀不到→UNKNOWN 靜默 skip,不影響其他旗。
+# 【🔴 定位】描述卡非預測器,**不可用於調整曝險**——受「市場層風險訊號永不疊加本書」鐵律約束
+#   (0 勝 5 敗:vol gate/涅濾網/塔門/融資 regime/崩盤 P2)。2026-07-28 實測:11 項過熱指標
+#   對次月動能反轉全部不顯著,且該資訊即使已知也不可交易(反轉 L/S 毛 -1.70%/月、七年虧六年)。
+#   唯一正當用途=事後歸因:分辨回撤是「投機清算」還是「外生衝擊」。
+conc_on = conc_month = None
+conc_q5 = conc_q5_pct = conc_hhi = conc_hhi_pct = None
+conc_detail = 'N/A'
+try:
+    _cf = Path(__file__).parent / 'concentration.json'
+    if _cf.exists():
+        _cj = json.loads(_cf.read_text(encoding='utf-8'))
+        _L = _cj.get('latest') or {}
+        conc_month = _L.get('month'); conc_on = bool(_L.get('on'))
+        conc_q5 = _L.get('q5_qtr_median'); conc_q5_pct = _L.get('q5_qtr_median_pct')
+        conc_hhi = _L.get('q5_hhi'); conc_hhi_pct = _L.get('q5_hhi_pct')
+        conc_detail = (f"{conc_month}:Q5季漲中位 {conc_q5:+.0f}% p{conc_q5_pct:.0%};"
+                       f"產業HHI {conc_hhi:.3f} p{conc_hhi_pct:.0%};前三產業 {_L.get('q5_top3_share'):.0f}%")
+        # 月頻資料過期(>45 天未更新)則標記,避免拿舊讀值當現況
+        _upd = pd.Timestamp(_cj.get('updated'))
+        if (pd.Timestamp((T or today).date()) - _upd).days > 45:
+            conc_detail += f'(⚠️stale,更新於 {_upd.date()})'; conc_on = None
+    else:
+        conc_detail = 'concentration.json 未產出(需 Mac 端月頻跑 monthly_concentration.py)'
+except Exception as e:
+    log_line(f'WARN:⑧b 集中度段失敗 {type(e).__name__}(本輪 UNKNOWN)')
+
 # ---------- 狀態更新與通知(翻轉才響) ----------
 rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=cost_bp,
            contract=contract, vix_p=round(vix_p, 3) if vix_p == vix_p else None,
@@ -481,6 +518,8 @@ rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=
            margin_all=margin_all, all_bal_dd=all_bal_dd, all_chg63=all_chg63,
            rv20=rv20, rv_pct=rv_pct, range_pct=range_pct, tw_stress=tw_stress,
            fuel_turn_pct=fuel_turn_pct, fuel_mg20=fuel_mg20, fuel_lag=fuel_lag, fuel_on=fuel_on,
+           conc_on=conc_on, conc_month=conc_month, conc_q5=conc_q5, conc_q5_pct=conc_q5_pct,
+           conc_hhi=conc_hhi, conc_hhi_pct=conc_hhi_pct,
            vol60=turb_vol60, vol60_pct=turb_vol60_pct, count60=turb_count60, turb_on=turb_on,
            maint=maint)
 hist = [h for h in hist if h.get('date') != rec['date']]
@@ -520,6 +559,14 @@ if fuel_on is not None and prev.get('fuel_on') is not None and fuel_on != prev.g
 if turb_on is not None and prev.get('turb_on') is not None and turb_on != prev.get('turb_on'):
     notify('🟠 湍流旗亮(崩盤雙軸)' if turb_on else '🟢 湍流旗熄(崩盤雙軸)',
            f'{turb_detail}。「會崩的頂是顛簸的頂」(vol60 p≥90;描述卡非訊號)。')
+
+# ⑧b 集中度(月頻,翻轉才響)。史上僅 2026-05、2026-06 兩個月亮過(n=1 episode,不得宣稱預測力)
+if conc_on is not None and prev.get('conc_on') is not None and conc_on != prev.get('conc_on'):
+    notify('🟠 集中度旗亮(燃料第三維)' if conc_on else '🟢 集中度旗熄(燃料第三維)',
+           (f'投機部位高度堆積:{conc_detail}。'
+            '史上僅 2026-05/06 亮過。🔴描述卡非預測器,**不得用於調整曝險**(鐵律 0 勝 5 敗)。'
+            if conc_on else
+            f'集中度退出極端:{conc_detail}。滅燈通常代表清算已發生,非風險解除。'))
 
 prev_maint = prev.get('maint')
 if maint is not None and prev_maint is not None:

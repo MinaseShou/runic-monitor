@@ -486,6 +486,10 @@ try:
     _cf = Path(__file__).parent / 'concentration.json'
     if _cf.exists():
         _cj = json.loads(_cf.read_text(encoding='utf-8'))
+        # 口徑版本 guard:不認得的版本 → UNKNOWN,不拿舊解讀套新口徑(靜默失敗最危險)
+        _sv = _cj.get('spec_version')
+        if _sv not in (1,):
+            raise ValueError(f'concentration.json spec_version={_sv} 非本檔支援版本(支援:1)')
         _L = _cj.get('latest') or {}
         conc_month = _L.get('month'); conc_on = bool(_L.get('on'))
         conc_q5 = _L.get('q5_qtr_median'); conc_q5_pct = _L.get('q5_qtr_median_pct')

@@ -23,15 +23,30 @@
 【執行】月頻即可(每月底跑一次),輸出 concentration.json 供 check_premium.py 讀取。
        Mac 跑(需 FinLab);monitor 端只讀 json,無 FinLab 依賴。
 """
-import json, pathlib, sys
+import json, os, pathlib, sys
 import pandas as pd, numpy as np
 import finlab
 from finlab import data
 
 OUT = pathlib.Path(__file__).parent / 'concentration.json'
 LIQ_MIN, NQ = 3e7, 5
+# 口徑版本:任何會改變讀值語意的變更(門檻/分位數/動能窗/母體定義)都要 +1,
+# 讀取端(check_premium.py ⑧b)只認 SPEC_VERSION_OK 清單,不認得就標 UNKNOWN 而非照舊解讀。
+# 目的:擋掉「口徑改了但顯示端沒跟著改」的靜默失敗(= 2026-07-28 涅 FAST bug 的同型風險)。
+SPEC_VERSION = 1
 
-finlab.login()
+# 登入:優先用新系統的快取憑證(`python -m finlab login` 寫在 ~/.finlab/credentials.json)。
+# 🔴 launchd 陷阱:無憑證時 finlab.login() 會退回 input() → 無 TTY 下 EOFError,所以要 catch。
+# 🔴 2026-08-01 後 finlab.login(token) 將被移除(DeprecationWarning),故 token 只當 fallback;
+#    屆時若快取憑證也失效,排程會 fail 並發 Basso 通知,需人工跑一次 `python -m finlab login`。
+try:
+    finlab.login()
+except Exception as _e:
+    _tok = os.environ.get('FINLAB_API_TOKEN', '').strip()
+    if not _tok:
+        raise RuntimeError(f'finlab 登入失敗且無 FINLAB_API_TOKEN fallback:{type(_e).__name__}') from _e
+    print(f'[WARN] 快取憑證登入失敗({type(_e).__name__}),改用 token fallback(2026-08-01 後將失效)')
+    finlab.login(_tok)
 adj = pd.DataFrame(data.get('etl:adj_close')); adj.index = pd.to_datetime(adj.index)
 amt = pd.DataFrame(data.get('price:成交金額')); amt.index = pd.to_datetime(amt.index)
 cat = data.get('security_categories').set_index('stock_id')['category']
@@ -67,6 +82,8 @@ H['on'] = (H.q5_qtr_median_pct >= 0.90) & (H.q5_hhi_pct >= 0.90)
 last = H.iloc[-1]
 
 payload = {
+    'spec_version': SPEC_VERSION,
+    'spec': f'liq>={LIQ_MIN:.0f} / {NQ}分位 / 動能窗=3個月 / 產業=security_categories(as-of 今日快照,歷史為回溯貼標)',
     'updated': str(pd.Timestamp(adj.index[-1]).date()),
     'note': '描述卡非預測器;受「市場層風險訊號永不疊加本書」鐵律約束,不可用於調整曝險',
     'latest': {k: (bool(v) if isinstance(v, (bool, np.bool_)) else v)

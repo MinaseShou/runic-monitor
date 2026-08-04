@@ -677,11 +677,11 @@
    "jp_dd": -0.0764,
    "jp_level": 0,
    "jp_lvl_pct": 0.981,
-   "fx_dd": -0.0426,
+   "fx_dd": -0.0396,
    "fx_level": 1,
-   "vxn_p": 0.726,
-   "vxn_hi": true,
-   "vxn": 26.0,
+   "vxn_p": 0.659,
+   "vxn_hi": false,
+   "vxn": 24.77,
    "tp_bal_dd": -0.2216,
    "tp_chg63": -0.0965,
    "tp_lvl_pct": 0.911,
@@ -707,7 +707,7 @@
    "vol60_pct": 0.923,
    "count60": 9,
    "turb_on": true,
-   "maint": null
+   "maint": 173.79
   }
  ],
  "last": {
@@ -732,11 +732,11 @@
   "jp_dd": -0.0764,
   "jp_level": 0,
   "jp_lvl_pct": 0.981,
-  "fx_dd": -0.0426,
+  "fx_dd": -0.0396,
   "fx_level": 1,
-  "vxn_p": 0.726,
-  "vxn_hi": true,
-  "vxn": 26.0,
+  "vxn_p": 0.659,
+  "vxn_hi": false,
+  "vxn": 24.77,
   "tp_bal_dd": -0.2216,
   "tp_chg63": -0.0965,
   "tp_lvl_pct": 0.911,
@@ -762,7 +762,7 @@
   "vol60_pct": 0.923,
   "count60": 9,
   "turb_on": true,
-  "maint": null,
+  "maint": 173.79,
   "slow_armed": false
  },
  "jp_hist": {
@@ -1542,6 +1542,7 @@
   "2026-07-28": 161.13,
   "2026-07-29": 156.0,
   "2026-07-30": 154.04,
-  "2026-07-31": 166.74
+  "2026-07-31": 166.74,
+  "2026-08-03": 173.79
  }
 }

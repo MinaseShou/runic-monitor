@@ -16,6 +16,8 @@
 ⑨ 湍流旗(同案;TAIEX 60 日年化波動 p756>=0.90=顛簸;崩盤首腿峰前湍流 AUC 0.658/0.778 雙對照存活;
    「會崩的頂是顛簸的頂」;2020 COVID 型外生零前兆=兩軸共同盲區)
 ⑧b 集中度(2026-07-28 翔核准;燃料旗第三維):Q5(季動能最強 5 分位)季漲中位 p>=0.90 且產業 HHI p>=0.90。
+⑩ 皮媞亞門日檢(2026-08-05 翔核准):V2.2 凍結 spec 門的日頻鬧鐘(TAIEX 2日<=-3% 觸發/空倉中 2日>=+2% V 回場/re-arm);
+   策略內生風控鏡像、非市場層旗,不受疊加鐵律約束;本旗不產生新訊號,執行以週頻 runner 為準。
    量能/融資描述「有多少錢在燒」,本維描述「錢集中燒在哪」。月頻,Mac 端 monthly_concentration.py
    預算 concentration.json、本檔只讀(無 FinLab 依賴,讀不到→UNKNOWN)。史上僅 2026-05/06 亮過。
    🔴描述卡非預測器、不得調曝險:11 項過熱指標對次月動能反轉全部不顯著,且該資訊即使已知也不可交易
@@ -505,6 +507,36 @@ try:
 except Exception as e:
     log_line(f'WARN:⑧b 集中度段失敗 {type(e).__name__}(本輪 UNKNOWN)')
 
+# ---------- ⑩ 皮媞亞門日檢(2026-08-05 翔核准) ----------
+# 【定位】與 ①-⑨ 不同:非市場層 context 旗,而是皮媞亞 V2.2「TAIEX 2日≤−3% 門+2% V 型
+#   回場(re-arm)」的每日鏡像鬧鐘——週頻 runner 只在週末跑,門觸發/回場都發生在週中,
+#   本旗負責當天推播。門=策略內生風控(V2.2 凍結 spec,vault ml_weekly/V22_SPEC.md),
+#   不受「市場層訊號永不疊加本書」鐵律約束;本旗不產生新訊號,執行以 runner/spec 為準。
+# 【語義】觸發→次一交易日開盤出清、門至下個週五訊號日;空倉中 2日≥+2%→次日回場;
+#   回場後可再觸發(re-arm);門中再觸發→門延到新的下個週五。
+py_gate = py_ret2 = py_until = py_event = None
+py_detail = 'N/A'
+try:
+    _px2 = pxc.dropna()
+    if len(_px2) >= 3:
+        py_ret2 = round(float(_px2.iloc[-1] / _px2.iloc[-3] - 1), 4)
+        _d = _px2.index[-1]
+        py_gate = bool(prev.get('py_gate') or False)
+        py_until = prev.get('py_gate_until')
+        _nf = _d + pd.Timedelta(days=((4 - _d.weekday()) % 7) or 7)  # 下個週五(嚴格在後)
+        if py_gate and py_until and str(_d.date()) >= py_until:
+            py_gate, py_until, py_event = False, None, 'weekly'
+        if py_gate and py_ret2 >= 0.02:
+            py_gate, py_until, py_event = False, None, 'vcatch'
+        elif py_gate and py_ret2 <= -0.03 and py_until:
+            py_until = max(py_until, str(_nf.date()))            # 門中再觸發=延門
+        elif (not py_gate) and py_ret2 <= -0.03:
+            py_gate, py_until, py_event = True, str(_nf.date()), 'trigger'
+        py_detail = (f'TAIEX 2日 {py_ret2:+.2%}({_d.date()}),門檻 −3%/回場 +2%'
+                     + (f';門至 {py_until}' if py_gate else ''))
+except Exception as e:
+    log_line(f'WARN:⑩ 皮媞亞門段失敗 {type(e).__name__}(本輪 UNKNOWN)')
+
 # ---------- 狀態更新與通知(翻轉才響) ----------
 rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=cost_bp,
            contract=contract, vix_p=round(vix_p, 3) if vix_p == vix_p else None,
@@ -525,6 +557,7 @@ rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=
            conc_on=conc_on, conc_month=conc_month, conc_q5=conc_q5, conc_q5_pct=conc_q5_pct,
            conc_hhi=conc_hhi, conc_hhi_pct=conc_hhi_pct,
            vol60=turb_vol60, vol60_pct=turb_vol60_pct, count60=turb_count60, turb_on=turb_on,
+           py_gate=py_gate, py_gate_until=py_until, py_ret2=py_ret2,
            maint=maint)
 hist = [h for h in hist if h.get('date') != rec['date']]
 hist = sorted(hist + [rec], key=lambda h: h['date'])[-120:]
@@ -584,6 +617,18 @@ if maint is not None and prev_maint is not None:
         notify('🟢 維持率回升上穿 150(斷頭潮尾聲確認式)',
                f'{maint_detail};歷史此式 +20日 +4.1%/勝率83%——認知資產非訊號。')
 
+# ⑩ 皮媞亞門(事件才響;trigger/vcatch/weekly 三型)
+if py_event == 'trigger':
+    notify('🔴 皮媞亞門觸發(V2.2 內生風控)',
+           f'{py_detail}。spec:次一交易日開盤出清全部持股,空倉至 V 型回場或門到期({py_until})。'
+           '本旗=鬧鐘,執行以 runner/spec 為準。')
+elif py_event == 'vcatch':
+    notify('🟢 皮媞亞 V 型回場',
+           f'{py_detail}。spec:次一交易日開盤回場(re-arm:回場後門可再觸發)。')
+elif py_event == 'weekly':
+    notify('🟢 皮媞亞門自然解除(週訊號日)',
+           f'{py_detail}。依最新週訊號回場。')
+
 recent = [h['cost_bp'] for h in hist[-ARM_DAYS:] if h.get('cost_bp') is not None]
 slow_armed = len(recent) >= ARM_DAYS and all(b <= ARM_BP for b in recent)
 if slow_armed and not prev.get('slow_armed'):
@@ -595,13 +640,13 @@ STATE.write_text(json.dumps(dict(history=hist, last=dict(rec, slow_armed=slow_ar
 log_line(f"{rec['date']} {contract or '-'} cost={cost_str} | G2={g2} G3={g3} "
          f"(vixp={vix_p:.2f} ratiop={ratio_p:.2f}) slow_armed={slow_armed} | margin={margin_state}({margin_detail}) "
          f"| TPEX={tp_detail} | KR={kr_detail} | JP={jp_detail} {fx_detail} | RV={rv_detail} lv{tw_stress} | {vxn_detail} hi={vxn_hi} "
-         f"| 燃料={fuel_on}({fuel_detail}) 湍流={turb_on}({turb_detail})")
+         f"| 燃料={fuel_on}({fuel_detail}) 湍流={turb_on}({turb_detail}) | 皮媞亞門={py_gate}({py_detail})")
 
 # ---------- README 儀表(GitHub 首頁即儀表) ----------
 def lamp(cond_bad, cond_warn):
     return '🔴' if cond_bad else ('🟡' if cond_warn else '🟢')
 
-readme = f"""# RUNiC Monitor(九面旗,每交易日 ~15:00 台北自動更新)
+readme = f"""# RUNiC Monitor(十面旗,每交易日 ~15:00 台北自動更新)
 
 **📊 儀表板:https://minaseshou.github.io/runic-monitor/**
 
@@ -620,10 +665,12 @@ readme = f"""# RUNiC Monitor(九面旗,每交易日 ~15:00 台北自動更新)
 | ⑦ VXN 科技 vol | {'🟡 ON' if vxn_hi else ('🟢 OFF' if vxn_hi is not None else '⚪ UNKNOWN')} | {vxn_detail},門檻 p252≥70% |
 | ⑧ 燃料旗(崩盤雙軸) | {'🟠 ON' if fuel_on else ('🟢 OFF' if fuel_on is not None else '⚪ UNKNOWN')} | {fuel_detail},門檻=量能 p≥90 且融資20日≥+5% |
 | ⑨ 湍流旗(崩盤雙軸) | {'🟠 ON' if turb_on else ('🟢 OFF' if turb_on is not None else '⚪ UNKNOWN')} | {turb_detail},門檻=vol60 p≥90 |
+| ⑩ 皮媞亞門日檢 | {('🔴 門中(空倉)' if py_gate else '🟢 正常') if py_gate is not None else '⚪ UNKNOWN'} | {py_detail} |
 
 口徑:回撤=距 252 觀測日(週頻=52 週)內高點(無前視);水位=近 3 年分佈百分位。
 ③b/⑥/⑦ 為 2026-07-17 新增(G2 美系口徑盲區補丁);regime 判別維持上市口徑,含櫃=同門檻 shadow;⑥⑦ 關卡未回測。
 ⑧⑨ 為 2026-07-21 新增(崩盤研究 Phase 1/3 雙軸蛛絲馬跡):燃料=投機槓桿加到頂(高燃料時 60 日內遇快崩率 46% vs base 27%)、湍流=顛簸的頂才崩;皆為描述非預測,外生零前兆型(2020 COVID 式)是共同盲區,解讀詳儀表頁。
+⑩ 為 2026-08-05 新增:皮媞亞 V2.2 門的日頻鬧鐘(TAIEX 2日≤−3% 出清/空倉中 2日≥+2% 回場/re-arm)——**策略內生風控鏡像,非市場層旗**;本旗不產生新訊號,執行以週頻 runner 為準。
 跨關卡/翻轉時自動開 Issue(=手機推播)。全歷史見 [log.md](log.md) 與 git 歷史。
 定位=context 非訊號(「市場層風險訊號永不疊加本書」鐵律);雙軌之雲端軌,Mac launchd 為備援。
 """

@@ -213,6 +213,19 @@ except Exception as e:
     log_line(f'WARN:融資 regime 段失敗 {type(e).__name__}(本輪 UNKNOWN)')
 
 # ---------- ③b 上櫃/含櫃雙口徑(TPEx 官方;FinMind 無上櫃 total;2026-07-17 翔核准並列) ----------
+def get_json_retry(url, params, timeout):
+    # 瞬時 JSONDecodeError 單次重試(2026-08-08 加;8/3 維持率+8/7 TPEx 兩段兩例,
+    # 皆深夜輪撞官網維護窗 pattern,端點事後直測皆活=瞬時非改版)
+    for attempt in (1, 2):
+        r = requests.get(url, params=params, headers=UA, timeout=timeout)
+        try:
+            return r.json()
+        except ValueError:
+            if attempt == 2:
+                raise
+            time.sleep(8)
+
+
 tpex_hist = dict(state.get('tpex_hist', {})) if isinstance(state, dict) else {}
 tp_bal_dd = tp_chg63 = tp_lvl_pct = tp_px_dd = None
 margin_all = None
@@ -222,10 +235,9 @@ try:
     need = [d for d in pd.bdate_range(end=today, periods=10)
             if d.strftime('%Y-%m-%d') not in tpex_hist]
     for d in need:
-        rt = requests.get('https://www.tpex.org.tw/www/zh-tw/margin/balance',
-                          params={'date': d.strftime('%Y/%m/%d'), 'response': 'json'},
-                          headers=UA, timeout=30)
-        ts_ = rt.json().get('tables', [])
+        ts_ = get_json_retry('https://www.tpex.org.tw/www/zh-tw/margin/balance',
+                             {'date': d.strftime('%Y/%m/%d'), 'response': 'json'},
+                             30).get('tables', [])
         summ = ts_[0].get('summary', []) if ts_ else []
         fin = [row for row in summ if any('融資金' in str(c) for c in row)]
         if fin and str(fin[0][6]).strip():  # 非交易日無融資金列,自然 skip(假日每輪重試,10 次×1s 可忽略)
@@ -282,27 +294,25 @@ try:
                     return float(s)
                 except ValueError:
                     return None
-            jm = requests.get('https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN',
-                              params={'date': D.strftime('%Y%m%d'), 'selectType': 'ALL', 'response': 'json'},
-                              headers=UA, timeout=60).json()
+            jm = get_json_retry('https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN',
+                                {'date': D.strftime('%Y%m%d'), 'selectType': 'ALL',
+                                 'response': 'json'}, 60)
             agg_ = {r[0]: r for r in jm['tables'][0]['data']}
             dsii = _num(agg_['融資金額(仟元)'][5]) * 1000
             mrows = {r[0].strip(): _num(r[6]) for r in jm['tables'][1]['data']}
-            ji = requests.get('https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX',
-                              params={'date': D.strftime('%Y%m%d'), 'type': 'ALLBUT0999', 'response': 'json'},
-                              headers=UA, timeout=120).json()
+            ji = get_json_retry('https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX',
+                                {'date': D.strftime('%Y%m%d'), 'type': 'ALLBUT0999',
+                                 'response': 'json'}, 120)
             ctab = [t for t in ji['tables'] if '每日收盤行情' in t.get('title', '')][0]
             csii = {r[0].strip(): _num(r[8]) for r in ctab['data']}
-            jt = requests.get('https://www.tpex.org.tw/www/zh-tw/margin/balance',
-                              params={'date': D.strftime('%Y/%m/%d'), 'response': 'json'},
-                              headers=UA, timeout=30).json()
+            jt = get_json_retry('https://www.tpex.org.tw/www/zh-tw/margin/balance',
+                                {'date': D.strftime('%Y/%m/%d'), 'response': 'json'}, 30)
             t3_ = jt['tables'][0]
             summ3 = [row for row in t3_['summary'] if any('融資金' in str(c) for c in row)]
             dotc = _num(summ3[0][6]) * 1000
             orow = {r[0].strip(): _num(r[6]) for r in t3_['data']}
-            jq = requests.get('https://www.tpex.org.tw/www/zh-tw/afterTrading/dailyQuotes',
-                              params={'date': D.strftime('%Y/%m/%d'), 'response': 'json'},
-                              headers=UA, timeout=60).json()
+            jq = get_json_retry('https://www.tpex.org.tw/www/zh-tw/afterTrading/dailyQuotes',
+                                {'date': D.strftime('%Y/%m/%d'), 'response': 'json'}, 60)
             cotc = {r[0].strip(): _num(r[2]) for r in jq['tables'][0]['data']}
             mv_ = (sum(sh * 1000 * csii[c] for c, sh in mrows.items() if sh and csii.get(c))
                    + sum(sh * 1000 * cotc[c] for c, sh in orow.items() if sh and cotc.get(c)))

@@ -48,7 +48,8 @@ def disp_type(measure, text, reason=""):
     """一次/二次/高當沖:上市看措施欄;上櫃看內容文字(全額預收=二次;第十三款或沖銷標準=高當沖加重 7 日)"""
     m, t, r = str(measure), str(text), str(reason)
     if "第十三款" in t or "沖銷" in r: base = "高當沖"
-    elif "第二次" in m or "第二次" in t or ("應就其當日已委託" in t and "單筆達" not in t): base = "二次"
+    # 🔴「已委託」句在上櫃全額交割股(業務規則第12條)也會出現→必須排除,否則假二次(紅隊 2026-09-02)
+    elif "第二次" in m or "第二次" in t or "曾發布處置" in t or ("應就其當日已委託" in t and "單筆達" not in t and "第12條" not in t and "全額交割" not in t): base = "二次"
     else: base = "一次"
     return base
 
@@ -211,7 +212,7 @@ for sid, recs in by_sid.items():
     # 分級
     rule_hit = [n for n, ok in [("連3第一款", k1c >= 3), ("連5注意", consec >= 5), ("10中6", n10 >= 6), ("30中12", n30 >= 12)] if ok]
     # A 級本次公告=今天;B/C 級最快=明天公告(+1 營業日)
-    repeat_zone = bd_prev_ann is not None and (bd_prev_ann + (0 if rule_hit else 1)) <= 30
+    repeat_zone = bd_prev_ann is not None and (bd_prev_ann + (0 if rule_hit else 1)) <= 29   # 含當日往回 30 交易日=間隔 ≤29(gap30 官方 12/12 判一次)
     one_short = [n for n, ok in [("連2第一款→明日再第一款", k1c == 2), ("連4注意→明日任一款", consec == 4), ("10中5→明日任一款", n10 == 5), ("30中11→明日任一款", n30 == 11)] if ok]
     two_short = [n for n, ok in [("連1第一款", k1c == 1), ("連3注意", consec == 3), ("10中4", n10 == 4)] if ok]
     today_eff = bool(today_rec) and any(1 <= c <= 8 for c in today_rec["clauses"])

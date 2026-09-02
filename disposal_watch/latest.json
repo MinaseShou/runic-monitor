@@ -2,7 +2,7 @@
  "summary": {
   "asof_attention": "2026-09-01",
   "asof_quotes": "2026-09-01",
-  "generated": "2026-09-02 10:27",
+  "generated": "2026-09-02 10:29",
   "n": 79,
   "counts": {
    "A 今晚公告處置": 6,
@@ -31,6 +31,7 @@
    "two_short": [
     "連3注意"
    ],
+   "period": "預計 2026-09-02～2026-09-08(估,假日未計)",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -67,6 +68,7 @@
    "two_short": [
     "連3注意"
    ],
+   "period": "預計 2026-09-02～2026-09-08(估,假日未計)",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -102,6 +104,7 @@
    "two_short": [
     "連3注意"
    ],
+   "period": "預計 2026-09-02～2026-09-08(估,假日未計)",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -138,6 +141,7 @@
    "two_short": [
     "連3注意"
    ],
+   "period": "預計 2026-09-02～2026-09-10(估,假日未計)",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -175,6 +179,7 @@
    "two_short": [
     "連3注意"
    ],
+   "period": "預計 2026-09-02～2026-09-08(估,假日未計)",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -210,6 +215,7 @@
     "10中5→明日任一款"
    ],
    "two_short": [],
+   "period": "預計 2026-09-02～2026-09-10(估,假日未計)",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -246,6 +252,7 @@
     "連3注意",
     "10中4"
    ],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -279,6 +286,7 @@
     "連2第一款→明日再第一款"
    ],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -314,6 +322,7 @@
     "連2第一款→明日再第一款"
    ],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -349,6 +358,7 @@
     "10中5→明日任一款"
    ],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -383,6 +393,7 @@
     "10中5→明日任一款"
    ],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -418,6 +429,7 @@
    "two_short": [
     "10中4"
    ],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -451,6 +463,7 @@
    "two_short": [
     "連1第一款"
    ],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -486,6 +499,7 @@
    "two_short": [
     "連1第一款"
    ],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -520,6 +534,7 @@
    "two_short": [
     "連1第一款"
    ],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -553,6 +568,7 @@
    "two_short": [
     "連1第一款"
    ],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -586,6 +602,7 @@
    "two_short": [
     "連1第一款"
    ],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -620,6 +637,7 @@
    "two_short": [
     "連1第一款"
    ],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -653,6 +671,7 @@
    "two_short": [
     "連1第一款"
    ],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -687,6 +706,7 @@
    "two_short": [
     "連1第一款"
    ],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -721,6 +741,7 @@
     "連3注意",
     "10中4"
    ],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -754,6 +775,7 @@
    "two_short": [
     "10中4"
    ],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -787,6 +809,7 @@
    "two_short": [
     "10中4"
    ],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -819,6 +842,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -850,6 +874,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -881,6 +906,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -912,6 +938,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -943,6 +970,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -974,6 +1002,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1005,6 +1034,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1036,6 +1066,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1067,6 +1098,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1098,6 +1130,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1129,6 +1162,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1158,6 +1192,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1187,6 +1222,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1216,6 +1252,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1245,6 +1282,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1274,6 +1312,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1303,6 +1342,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1332,6 +1372,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1361,6 +1402,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1390,6 +1432,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1419,6 +1462,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1448,6 +1492,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1477,6 +1522,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1506,6 +1552,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1535,6 +1582,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1564,6 +1612,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1593,6 +1642,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1622,6 +1672,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1651,6 +1702,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1680,6 +1732,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1709,6 +1762,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1738,6 +1792,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1767,6 +1822,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1796,6 +1852,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1825,6 +1882,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1854,6 +1912,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1883,6 +1942,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1912,6 +1972,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1941,6 +2002,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1970,6 +2032,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -1999,6 +2062,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -2028,6 +2092,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -2057,6 +2122,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -2086,6 +2152,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -2115,6 +2182,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "",
    "cur_typ": null,
    "cur_start": null,
    "cur_end": null,
@@ -2146,6 +2214,7 @@
     "10中5→明日任一款"
    ],
    "two_short": [],
+   "period": "2026-08-27～2026-09-02",
    "cur_typ": "一次",
    "cur_start": "2026-08-27",
    "cur_end": "2026-09-02",
@@ -2177,6 +2246,7 @@
     "10中5→明日任一款"
    ],
    "two_short": [],
+   "period": "2026-08-28～2026-09-03",
    "cur_typ": "二次",
    "cur_start": "2026-08-28",
    "cur_end": "2026-09-03",
@@ -2211,6 +2281,7 @@
     "10中5→明日任一款"
    ],
    "two_short": [],
+   "period": "2026-08-31～2026-09-04",
    "cur_typ": "一次",
    "cur_start": "2026-08-31",
    "cur_end": "2026-09-04",
@@ -2244,6 +2315,7 @@
     "10中5→明日任一款"
    ],
    "two_short": [],
+   "period": "2026-08-31～2026-09-04",
    "cur_typ": "一次",
    "cur_start": "2026-08-31",
    "cur_end": "2026-09-04",
@@ -2275,6 +2347,7 @@
     "10中5→明日任一款"
    ],
    "two_short": [],
+   "period": "2026-08-31～2026-09-04",
    "cur_typ": "二次",
    "cur_start": "2026-08-31",
    "cur_end": "2026-09-04",
@@ -2306,6 +2379,7 @@
     "10中5→明日任一款"
    ],
    "two_short": [],
+   "period": "2026-08-31～2026-09-04",
    "cur_typ": "一次",
    "cur_start": "2026-08-31",
    "cur_end": "2026-09-04",
@@ -2337,6 +2411,7 @@
    "two_short": [
     "10中4"
    ],
+   "period": "2026-08-27～2026-09-04",
    "cur_typ": "高當沖",
    "cur_start": "2026-08-27",
    "cur_end": "2026-09-04",
@@ -2370,6 +2445,7 @@
    ],
    "one_short": [],
    "two_short": [],
+   "period": "2026-09-01～2026-09-07",
    "cur_typ": "一次",
    "cur_start": "2026-09-01",
    "cur_end": "2026-09-07",
@@ -2402,6 +2478,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "2026-09-01～2026-09-07",
    "cur_typ": "二次",
    "cur_start": "2026-09-01",
    "cur_end": "2026-09-07",
@@ -2436,6 +2513,7 @@
     "10中5→明日任一款"
    ],
    "two_short": [],
+   "period": "2026-09-01～2026-09-09",
    "cur_typ": "高當沖",
    "cur_start": "2026-09-01",
    "cur_end": "2026-09-09",
@@ -2468,6 +2546,7 @@
    "rule": [],
    "one_short": [],
    "two_short": [],
+   "period": "2026-08-26～2026-09-01",
    "cur_typ": "一次",
    "cur_start": "2026-08-26",
    "cur_end": "2026-09-01",

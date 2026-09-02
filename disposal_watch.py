@@ -64,6 +64,21 @@ disp = state.setdefault("disposal", {})        # f"{sid}|{start}" -> {sid,name,m
 pred_prev = state.get("pred", {})              # 昨日預測(自我驗證用)
 
 # ---------- 1) 行情(closes 快取;冷啟動回填 12 個交易日) ----------
+def prev_wday(d: dt.date) -> dt.date:
+    d -= dt.timedelta(days=1)
+    while d.weekday() >= 5: d -= dt.timedelta(days=1)
+    return d
+
+
+def wdays(a: dt.date, b: dt.date) -> int:
+    """[a, b) 之間的週一至五天數(= numpy busday_count 語意)。"""
+    n, d = 0, a
+    while d < b:
+        if d.weekday() < 5: n += 1
+        d += dt.timedelta(days=1)
+    return n
+
+
 def fetch_closes(d: dt.date):
     got = {}
     j = get_json("https://www.twse.com.tw/rwd/zh/afterTrading/MI_INDEX", {"date": d.strftime("%Y%m%d"), "type": "ALLBUT0999", "response": "json"}, 90)
@@ -176,9 +191,11 @@ for sid, recs in by_sid.items():
     # 處置狀態
     spans = [v for v in disp.values() if v["sid"] == sid]
     in_disp = any(v["start"] <= ATT_ASOF <= v["end"] for v in spans)
-    last_end = max((v["end"] for v in spans if v["end"] < ATT_ASOF), default=None)
-    days_since = (tidx(ATT_ASOF) - (tidx(last_end) if last_end and tidx(last_end) is not None else -999)) if last_end else None
-    repeat_zone = bool(last_end and days_since is not None and 0 < days_since <= 30)
+    last_span = max((v for v in spans if v["end"] < ATT_ASOF), key=lambda v: v["end"], default=None)
+    last_end = last_span["end"] if last_span else None
+    # 二次判定:官方「最近30個營業日內曾發布處置」= 前次公告日(=前次開始前一營業日)→本次公告日 ≤30 營業日
+    # (2026-09-02 面板夾邊界:舊制 ≤30 桶 86–100%、>30 驟降;新制 3450 bd30=二次/7795 bd31=一次)。週一至五計數,未扣國定假日 ±1–2 天。
+    bd_prev_ann = wdays(prev_wday(dt.date.fromisoformat(last_span["start"])), dt.date.fromisoformat(ATT_ASOF)) if last_span else None
     # 門檻價(第一款):Σ 近五日日漲跌幅 + 明日 ≥ thr
     cl = closes.get(sid, {}); cds = sorted(cl)[-7:]
     sum5 = None; last_close = cl.get(ASOF)
@@ -193,6 +210,8 @@ for sid, recs in by_sid.items():
     up_ok = need_up is not None and need_up <= LIMIT_UP; dn_ok = need_dn is not None and need_dn >= -LIMIT_UP
     # 分級
     rule_hit = [n for n, ok in [("連3第一款", k1c >= 3), ("連5注意", consec >= 5), ("10中6", n10 >= 6), ("30中12", n30 >= 12)] if ok]
+    # A 級本次公告=今天;B/C 級最快=明天公告(+1 營業日)
+    repeat_zone = bd_prev_ann is not None and (bd_prev_ann + (0 if rule_hit else 1)) <= 30
     one_short = [n for n, ok in [("連2第一款→明日再第一款", k1c == 2), ("連4注意→明日任一款", consec == 4), ("10中5→明日任一款", n10 == 5), ("30中11→明日任一款", n30 == 11)] if ok]
     two_short = [n for n, ok in [("連1第一款", k1c == 1), ("連3注意", consec == 3), ("10中4", n10 == 4)] if ok]
     today_eff = bool(today_rec) and any(1 <= c <= 8 for c in today_rec["clauses"])

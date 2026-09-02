@@ -1,0 +1,33 @@
+name: disposal-watch
+on:
+  schedule:
+    - cron: '30 13 * * 1-5'   # 13:30 UTC ≈ 21:30 台北:注意/處置公告 ~16:00、行情 ~15:00 皆已出
+    - cron: '0 15 * * 1-5'    # 15:00 UTC ≈ 23:00 台北 catch-up(GitHub 高峰 drop 排程;腳本冪等)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: disposal-watch
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TZ: Asia/Taipei
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet requests
+      - run: python3 disposal_watch.py
+      - run: |
+          git config user.name "runic-monitor[bot]"
+          git config user.email "runic-monitor@users.noreply.github.com"
+          git add -A disposal_watch/
+          git diff --cached --quiet || git commit -m "disposal-watch $(date '+%Y-%m-%d %H:%M') TPE"
+          git push

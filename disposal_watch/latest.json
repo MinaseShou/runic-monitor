@@ -2,7 +2,7 @@
  "summary": {
   "asof_attention": "2026-09-01",
   "asof_quotes": "2026-09-01",
-  "generated": "2026-09-02 10:29",
+  "generated": "2026-09-02 11:30",
   "n": 79,
   "counts": {
    "A 今晚公告處置": 6,
@@ -379,7 +379,7 @@
    "need_dn": -41.73,
    "px_dn": null,
    "in_disposal": false,
-   "repeat_zone": false,
+   "repeat_zone": true,
    "last_disposal_end": "2026-08-17"
   },
   {
@@ -746,7 +746,7 @@
    "cur_start": null,
    "cur_end": null,
    "remain": null,
-   "pred_typ": "一次",
+   "pred_typ": "二次(全額預收)",
    "consec": 3,
    "k1c": 0,
    "n10": 4,
@@ -762,7 +762,7 @@
    "need_dn": -36.26,
    "px_dn": null,
    "in_disposal": false,
-   "repeat_zone": false,
+   "repeat_zone": true,
    "last_disposal_end": "2026-08-17"
   },
   {
@@ -911,7 +911,7 @@
    "cur_start": null,
    "cur_end": null,
    "remain": null,
-   "pred_typ": "一次",
+   "pred_typ": "二次(全額預收)",
    "consec": 1,
    "k1c": 0,
    "n10": 1,
@@ -927,7 +927,7 @@
    "need_dn": -13.93,
    "px_dn": null,
    "in_disposal": false,
-   "repeat_zone": false,
+   "repeat_zone": true,
    "last_disposal_end": "2026-08-14"
   },
   {
@@ -943,7 +943,7 @@
    "cur_start": null,
    "cur_end": null,
    "remain": null,
-   "pred_typ": "一次",
+   "pred_typ": "二次(全額預收)",
    "consec": 1,
    "k1c": 0,
    "n10": 1,
@@ -959,7 +959,7 @@
    "need_dn": -37.38,
    "px_dn": null,
    "in_disposal": false,
-   "repeat_zone": false,
+   "repeat_zone": true,
    "last_disposal_end": "2026-08-13"
   },
   {
@@ -991,7 +991,7 @@
    "need_dn": -30.43,
    "px_dn": null,
    "in_disposal": false,
-   "repeat_zone": false,
+   "repeat_zone": true,
    "last_disposal_end": "2026-08-14"
   },
   {
@@ -1135,7 +1135,7 @@
    "cur_start": null,
    "cur_end": null,
    "remain": null,
-   "pred_typ": "一次",
+   "pred_typ": "二次(全額預收)",
    "consec": 1,
    "k1c": 0,
    "n10": 2,
@@ -1151,7 +1151,7 @@
    "need_dn": -44.8,
    "px_dn": null,
    "in_disposal": false,
-   "repeat_zone": false,
+   "repeat_zone": true,
    "last_disposal_end": "2026-08-17"
   },
   {
@@ -1287,7 +1287,7 @@
    "cur_start": null,
    "cur_end": null,
    "remain": null,
-   "pred_typ": "一次",
+   "pred_typ": "二次(全額預收)",
    "consec": 0,
    "k1c": 0,
    "n10": 2,
@@ -1301,7 +1301,7 @@
    "need_dn": -34.68,
    "px_dn": null,
    "in_disposal": false,
-   "repeat_zone": false,
+   "repeat_zone": true,
    "last_disposal_end": "2026-08-17"
   },
   {
@@ -1437,7 +1437,7 @@
    "cur_start": null,
    "cur_end": null,
    "remain": null,
-   "pred_typ": "一次",
+   "pred_typ": "二次(全額預收)",
    "consec": 0,
    "k1c": 0,
    "n10": 1,
@@ -1451,7 +1451,7 @@
    "need_dn": -37.86,
    "px_dn": null,
    "in_disposal": false,
-   "repeat_zone": false,
+   "repeat_zone": true,
    "last_disposal_end": "2026-08-14"
   },
   {
@@ -1857,7 +1857,7 @@
    "cur_start": null,
    "cur_end": null,
    "remain": null,
-   "pred_typ": "一次",
+   "pred_typ": "二次(全額預收)",
    "consec": 0,
    "k1c": 0,
    "n10": 3,
@@ -1871,7 +1871,7 @@
    "need_dn": -38.4,
    "px_dn": null,
    "in_disposal": false,
-   "repeat_zone": false,
+   "repeat_zone": true,
    "last_disposal_end": "2026-08-17"
   },
   {

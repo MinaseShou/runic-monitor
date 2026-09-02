@@ -44,6 +44,14 @@ def num(x):
     try: return float(str(x).replace(",", "").replace("--", "nan"))
     except Exception: return float("nan")
 
+def disp_type(measure, text, reason=""):
+    """一次/二次/高當沖:上市看措施欄;上櫃看內容文字(全額預收=二次;第十三款或沖銷標準=高當沖加重 7 日)"""
+    m, t, r = str(measure), str(text), str(reason)
+    if "第十三款" in t or "沖銷" in r: base = "高當沖"
+    elif "第二次" in m or "第二次" in t or ("應就其當日已委託" in t and "單筆達" not in t): base = "二次"
+    else: base = "一次"
+    return base
+
 CN = {"一":1,"二":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9,"十":10,"十一":11,"十二":12,"十三":13}
 def clauses(text):
     return sorted({CN[m] for m in re.findall(r"第(十[一二三]|[一二三四五六七八九十])款", str(text)) if m in CN})
@@ -115,7 +123,8 @@ try:
         if not re.fullmatch(r"\d{4}", sid): continue
         per = re.split(r"[～~]", str(r[6]))
         if len(per) < 2: continue
-        disp[f"{sid}|{roc(per[0])}"] = dict(sid=sid, name=str(r[3]).strip(), mkt="TWSE", start=roc(per[0]), end=roc(per[1]), measure=str(r[7]).strip())
+        disp[f"{sid}|{roc(per[0])}"] = dict(sid=sid, name=str(r[3]).strip(), mkt="TWSE", start=roc(per[0]), end=roc(per[1]),
+                                              measure=str(r[7]).strip(), typ=disp_type(r[7], r[8]), cum=num(r[4]))
 except Exception as e: log(f"WARN TWSE punish {type(e).__name__}")
 try:
     j = get_json("https://www.tpex.org.tw/www/zh-tw/bulletin/disposal", {"startDate": start.strftime("%Y/%m/%d"), "endDate": end.strftime("%Y/%m/%d"), "response": "json"}, 60)
@@ -124,7 +133,8 @@ try:
         if not re.fullmatch(r"\d{4}", sid): continue
         per = re.split(r"[～~]", str(r[5]))
         if len(per) < 2: continue
-        disp[f"{sid}|{roc(per[0])}"] = dict(sid=sid, name=re.sub(r"\(.*?\)", "", str(r[3])).strip(), mkt="TPEX", start=roc(per[0]), end=roc(per[1]), measure="處置")
+        disp[f"{sid}|{roc(per[0])}"] = dict(sid=sid, name=re.sub(r"\(.*?\)", "", str(r[3])).strip(), mkt="TPEX", start=roc(per[0]), end=roc(per[1]),
+                                              measure=str(r[6]).strip()[:20], typ=disp_type("", r[7], r[6]), cum=num(r[4]))
 except Exception as e: log(f"WARN TPEx disposal {type(e).__name__}")
 # 修剪 90 天
 cut = (NOW.date() - dt.timedelta(days=90)).isoformat()
@@ -192,14 +202,26 @@ for sid, recs in by_sid.items():
     elif one_short: grade = "B 差一次(聽牌)"
     elif two_short: grade = "C 差兩次"
     else: grade = "D 注意中"
+    cur = next((v for v in spans if v["start"] <= ATT_ASOF <= v["end"]), None)
+    cur_typ = cur.get("typ", "?") if cur else None
+    remain = None
+    if cur:
+        fut = [d for d in tset if d > ATT_ASOF and d <= cur["end"]]
+        remain = len(fut) if fut else None  # 行情日曆只到今天→未來列數不可得時用曆日估
+        if remain is None:
+            import datetime as _dt
+            remain = len([1 for k in range(1, 15) if (_dt.date.fromisoformat(ATT_ASOF) + _dt.timedelta(days=k)).weekday() < 5 and (_dt.date.fromisoformat(ATT_ASOF) + _dt.timedelta(days=k)).isoformat() <= cur["end"]])
+    recent13 = any(13 in r["clauses"] for r in recs[-5:])
+    pred_typ = ("高當沖(加重7日)" if recent13 else "") or ("二次(全額預收)" if repeat_zone else "一次")
     rows.append(dict(sid=sid, name=name, mkt=mkt, grade=grade, rule=rule_hit, one_short=one_short, two_short=two_short,
+                     cur_typ=cur_typ, cur_start=cur["start"] if cur else None, cur_end=cur["end"] if cur else None, remain=remain, pred_typ=pred_typ,
                      consec=consec, k1c=k1c, n10=n10, n30=n30, cum_official=(today_rec or {}).get("cum"),
                      today_clauses=(today_rec or {}).get("clauses", []), close=last_close, sum5=None if sum5 is None else round(sum5, 2),
                      need_up=None if need_up is None else round(need_up, 2), px_up=px_up if up_ok else None,
                      need_dn=None if need_dn is None else round(need_dn, 2), px_dn=px_dn if dn_ok else None,
                      in_disposal=in_disp, repeat_zone=repeat_zone, last_disposal_end=last_end))
 order = {"A 今晚公告處置": 0, "B 差一次(聽牌)": 1, "C 差兩次": 2, "D 注意中": 3, "處置中": 4}
-rows.sort(key=lambda r: (order[r["grade"]], -(r["k1c"] * 10 + r["consec"])))
+rows.sort(key=lambda r: (order[r["grade"]], (r["remain"] or 99) if r["in_disposal"] else -(r["k1c"] * 10 + r["consec"])))
 
 # ---------- 4) 自我驗證(昨日預測 vs 今日實況) ----------
 val = {}
@@ -240,8 +262,9 @@ for g in order:
     md.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|")
     for r in grp:
         note = "、".join(r["rule"] or r["one_short"] or r["two_short"])
-        if r["repeat_zone"]: note += "｜30日內再犯→二次(全額預收)"
-        if r["in_disposal"]: note = "處置期間"
+        if r["grade"].startswith("A"): note += f"｜若關={r['pred_typ']}"
+        elif r["repeat_zone"]: note += "｜30日內再犯→二次(全額預收)"
+        if r["in_disposal"]: note = f"【{r['cur_typ']}】{r['cur_start']}～{r['cur_end']}｜剩 {r['remain']} 交易日(含明日)"
         md.append(f"| {r['sid']} | {r['name']} | {r['mkt']} | {r['consec']} | {r['k1c']} | {r['n10']} | {r['n30']} | {'' if r['cum_official'] != r['cum_official'] else int(r['cum_official']) if r['cum_official'] is not None else ''} | {','.join(map(str, r['today_clauses']))} | {r['close'] or ''} | {'' if r['sum5'] is None else f'{r['sum5']:+.1f}%'} | {fmt_px(r)} | {note} |")
     md.append("")
 (OUT / "latest.md").write_text("\n".join(md), encoding="utf-8")
@@ -256,7 +279,8 @@ for g in order:
     if not grp: continue
     html.append(f"<h2>{g}（{len(grp)}）</h2><table><tr><th>代號</th><th>名稱</th><th>市</th><th>連注</th><th>連一</th><th>10日</th><th>30日</th><th>今日款</th><th>收盤</th><th>近五Σ</th><th>明日第一款門檻價</th><th>備註</th></tr>")
     for r in grp:
-        note = "、".join(r["rule"] or r["one_short"] or r["two_short"]) + ("｜再犯→二次" if r["repeat_zone"] else "")
+        note = (f"【{r['cur_typ']}】{r['cur_start']}～{r['cur_end']}｜剩 {r['remain']} 日" if r["in_disposal"]
+                else "、".join(r["rule"] or r["one_short"] or r["two_short"]) + (f"｜若關={r['pred_typ']}" if r["grade"].startswith("A") else ("｜再犯→二次" if r["repeat_zone"] else "")))
         html.append(f"<tr class='{g[0]}'><td>{r['sid']}</td><td>{r['name']}</td><td>{r['mkt'][:2]}</td><td>{r['consec']}</td><td>{r['k1c']}</td><td>{r['n10']}</td><td>{r['n30']}</td><td>{','.join(map(str, r['today_clauses']))}</td><td>{r['close'] or ''}</td><td>{'' if r['sum5'] is None else f'{r['sum5']:+.1f}%'}</td><td>{fmt_px(r)}</td><td>{note}</td></tr>")
     html.append("</table>")
 html.append("</body></html>")

@@ -212,9 +212,18 @@ for sid, recs in by_sid.items():
             import datetime as _dt
             remain = len([1 for k in range(1, 15) if (_dt.date.fromisoformat(ATT_ASOF) + _dt.timedelta(days=k)).weekday() < 5 and (_dt.date.fromisoformat(ATT_ASOF) + _dt.timedelta(days=k)).isoformat() <= cur["end"]])
     recent13 = any(13 in r["clauses"] for r in recs[-5:])
+    import datetime as _dt
+    def _bd(d0, n):  # d0 之後第 n 個平日(含 d0 本身算第 1)
+        d, k = d0, 0
+        while k < n:
+            d += _dt.timedelta(days=1)
+            if d.weekday() < 5: k += 1
+        return d
+    _a = _dt.date.fromisoformat(ATT_ASOF); _d1 = _bd(_a, 1); _dn = _bd(_a, 7 if recent13 else 5)
+    period = (f"{cur['start']}～{cur['end']}" if cur else (f"預計 {_d1.isoformat()}～{_dn.isoformat()}(估,假日未計)" if grade.startswith("A") else ""))
     pred_typ = ("高當沖(加重7日)" if recent13 else "") or ("二次(全額預收)" if repeat_zone else "一次")
     rows.append(dict(sid=sid, name=name, mkt=mkt, grade=grade, rule=rule_hit, one_short=one_short, two_short=two_short,
-                     cur_typ=cur_typ, cur_start=cur["start"] if cur else None, cur_end=cur["end"] if cur else None, remain=remain, pred_typ=pred_typ,
+                     period=period, cur_typ=cur_typ, cur_start=cur["start"] if cur else None, cur_end=cur["end"] if cur else None, remain=remain, pred_typ=pred_typ,
                      consec=consec, k1c=k1c, n10=n10, n30=n30, cum_official=(today_rec or {}).get("cum"),
                      today_clauses=(today_rec or {}).get("clauses", []), close=last_close, sum5=None if sum5 is None else round(sum5, 2),
                      need_up=None if need_up is None else round(need_up, 2), px_up=px_up if up_ok else None,
@@ -258,14 +267,14 @@ for g in order:
     grp = [r for r in rows if r["grade"] == g]
     if not grp: continue
     md.append(f"## {g}（{len(grp)}）\n")
-    md.append("| 代號 | 名稱 | 市場 | 連注意 | 連第一款 | 10日 | 30日 | 官方累計 | 今日款 | 收盤 | 近五日Σ | 明日第一款門檻價 | 備註 |")
-    md.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+    md.append("| 代號 | 名稱 | 市場 | 期間 | 連注意 | 連第一款 | 10日 | 30日 | 官方累計 | 今日款 | 收盤 | 近五日Σ | 明日第一款門檻價 | 備註 |")
+    md.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
     for r in grp:
         note = "、".join(r["rule"] or r["one_short"] or r["two_short"])
         if r["grade"].startswith("A"): note += f"｜若關={r['pred_typ']}"
         elif r["repeat_zone"]: note += "｜30日內再犯→二次(全額預收)"
-        if r["in_disposal"]: note = f"【{r['cur_typ']}】{r['cur_start']}～{r['cur_end']}｜剩 {r['remain']} 交易日(含明日)"
-        md.append(f"| {r['sid']} | {r['name']} | {r['mkt']} | {r['consec']} | {r['k1c']} | {r['n10']} | {r['n30']} | {'' if r['cum_official'] != r['cum_official'] else int(r['cum_official']) if r['cum_official'] is not None else ''} | {','.join(map(str, r['today_clauses']))} | {r['close'] or ''} | {'' if r['sum5'] is None else f'{r['sum5']:+.1f}%'} | {fmt_px(r)} | {note} |")
+        if r["in_disposal"]: note = f"【{r['cur_typ']}】剩 {r['remain']} 交易日(含明日)"
+        md.append(f"| {r['sid']} | {r['name']} | {r['mkt']} | {r['period']} | {r['consec']} | {r['k1c']} | {r['n10']} | {r['n30']} | {'' if r['cum_official'] != r['cum_official'] else int(r['cum_official']) if r['cum_official'] is not None else ''} | {','.join(map(str, r['today_clauses']))} | {r['close'] or ''} | {'' if r['sum5'] is None else f'{r['sum5']:+.1f}%'} | {fmt_px(r)} | {note} |")
     md.append("")
 (OUT / "latest.md").write_text("\n".join(md), encoding="utf-8")
 html = ["<!DOCTYPE html><html lang='zh-Hant'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>",
@@ -277,11 +286,11 @@ if val: html.append(f"<div class='small'>昨日自驗 A {val['A_hit']}/{val['A_n
 for g in order:
     grp = [r for r in rows if r["grade"] == g]
     if not grp: continue
-    html.append(f"<h2>{g}（{len(grp)}）</h2><table><tr><th>代號</th><th>名稱</th><th>市</th><th>連注</th><th>連一</th><th>10日</th><th>30日</th><th>今日款</th><th>收盤</th><th>近五Σ</th><th>明日第一款門檻價</th><th>備註</th></tr>")
+    html.append(f"<h2>{g}（{len(grp)}）</h2><table><tr><th>代號</th><th>名稱</th><th>市</th><th>期間</th><th>連注</th><th>連一</th><th>10日</th><th>30日</th><th>今日款</th><th>收盤</th><th>近五Σ</th><th>明日第一款門檻價</th><th>備註</th></tr>")
     for r in grp:
-        note = (f"【{r['cur_typ']}】{r['cur_start']}～{r['cur_end']}｜剩 {r['remain']} 日" if r["in_disposal"]
+        note = (f"【{r['cur_typ']}】剩 {r['remain']} 日" if r["in_disposal"]
                 else "、".join(r["rule"] or r["one_short"] or r["two_short"]) + (f"｜若關={r['pred_typ']}" if r["grade"].startswith("A") else ("｜再犯→二次" if r["repeat_zone"] else "")))
-        html.append(f"<tr class='{g[0]}'><td>{r['sid']}</td><td>{r['name']}</td><td>{r['mkt'][:2]}</td><td>{r['consec']}</td><td>{r['k1c']}</td><td>{r['n10']}</td><td>{r['n30']}</td><td>{','.join(map(str, r['today_clauses']))}</td><td>{r['close'] or ''}</td><td>{'' if r['sum5'] is None else f'{r['sum5']:+.1f}%'}</td><td>{fmt_px(r)}</td><td>{note}</td></tr>")
+        html.append(f"<tr class='{g[0]}'><td>{r['sid']}</td><td>{r['name']}</td><td>{r['mkt'][:2]}</td><td>{r['period']}</td><td>{r['consec']}</td><td>{r['k1c']}</td><td>{r['n10']}</td><td>{r['n30']}</td><td>{','.join(map(str, r['today_clauses']))}</td><td>{r['close'] or ''}</td><td>{'' if r['sum5'] is None else f'{r['sum5']:+.1f}%'}</td><td>{fmt_px(r)}</td><td>{note}</td></tr>")
     html.append("</table>")
 html.append("</body></html>")
 (OUT / "index.html").write_text("\n".join(html), encoding="utf-8")

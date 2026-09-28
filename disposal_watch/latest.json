@@ -2,7 +2,7 @@
  "summary": {
   "asof_attention": "2026-09-24",
   "asof_quotes": "2026-09-24",
-  "generated": "2026-09-26 03:03",
+  "generated": "2026-09-29 04:12",
   "n": 81,
   "counts": {
    "A 今晚公告處置": 0,
@@ -39,7 +39,7 @@
    "k1c": 2,
    "n10": 2,
    "n30": 2,
-   "cum_official": 6.0,
+   "cum_official": 5.0,
    "today_clauses": [
     1
    ],
@@ -652,7 +652,7 @@
    "k1c": 0,
    "n10": 1,
    "n30": 2,
-   "cum_official": 6.0,
+   "cum_official": 4.0,
    "today_clauses": [
     6
    ],
@@ -684,7 +684,7 @@
    "k1c": 0,
    "n10": 2,
    "n30": 2,
-   "cum_official": 8.0,
+   "cum_official": 7.0,
    "today_clauses": [
     6
    ],
@@ -716,7 +716,7 @@
    "k1c": 0,
    "n10": 1,
    "n30": 1,
-   "cum_official": 4.0,
+   "cum_official": 2.0,
    "today_clauses": [
     4
    ],

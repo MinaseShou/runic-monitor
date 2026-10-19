@@ -2,7 +2,7 @@
  "summary": {
   "asof_attention": "2026-10-19",
   "asof_quotes": "2026-10-19",
-  "generated": "2026-10-20 03:26",
+  "generated": "2026-10-20 04:18",
   "n": 77,
   "counts": {
    "A 今晚公告處置": 2,
@@ -11,13 +11,7 @@
    "D 注意中": 57,
    "處置中": 15
   },
-  "validation": {
-   "prev_asof": "2026-10-16",
-   "A_n": 4,
-   "A_hit": 4,
-   "B_n": 4,
-   "B_hit": 3
-  },
+  "validation": {},
   "thresholds": {
    "TWSE": 25.0,
    "TPEX": 23.0

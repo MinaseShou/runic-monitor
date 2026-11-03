@@ -4151,7 +4151,7 @@
    "jp_dd": -0.0794,
    "jp_level": 0,
    "jp_lvl_pct": null,
-   "fx_dd": -0.012,
+   "fx_dd": -0.0105,
    "fx_level": 0,
    "vxn_p": 0.972,
    "vxn_hi": true,
@@ -4184,7 +4184,7 @@
    "py_gate": true,
    "py_gate_until": "2026-11-06",
    "py_ret2": -0.0421,
-   "maint": null
+   "maint": 161.21
   }
  ],
  "last": {
@@ -4209,7 +4209,7 @@
   "jp_dd": -0.0794,
   "jp_level": 0,
   "jp_lvl_pct": null,
-  "fx_dd": -0.012,
+  "fx_dd": -0.0105,
   "fx_level": 0,
   "vxn_p": 0.972,
   "vxn_hi": true,
@@ -4242,7 +4242,7 @@
   "py_gate": true,
   "py_gate_until": "2026-11-06",
   "py_ret2": -0.0421,
-  "maint": null,
+  "maint": 161.21,
   "slow_armed": false
  },
  "jp_hist": {
@@ -5151,6 +5151,7 @@
   "2026-10-28": 181.82,
   "2026-10-29": 177.59,
   "2026-10-30": 170.57,
-  "2026-11-02": 170.6
+  "2026-11-02": 170.6,
+  "2026-11-03": 161.21
  }
 }

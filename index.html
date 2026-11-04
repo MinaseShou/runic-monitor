@@ -87,6 +87,7 @@ footer b{color:var(--ink)}
     <li><b>湍流旗</b>(同案)——白話:看上漲的「路面品質」——會崩的頂,峰前 60 日已經開始顛(出現過幾次 2% 級下跳、波動墊高);絲滑上去的頂不崩。技術:vol60 AUC 0.658/0.778(對「同樣是波段頂但沒崩」的嚴格對照=全案最強讀值),35/35 件崩盤 peak→觸發都有前導段(中位 18 交易日);與燃料軸近正交(ρ=0.12)=獨立的第二條軸。與 ⑥ RV 旗的分工:⑥ 量 20 日急震(壓力已爆),本旗量 60 日底噪(頂的品質)。共同盲區:外生零前兆型(2020 COVID 峰=分位 39/零下跳照樣崩)——這也是「預警系統」被判死、這兩面旗只當描述卡的原因。</li>
     <li><b>韓國 KOFIA</b>(信用融資餘額,日頻;關卡 −10%/−20%)——意義:同一道浪裡槓桿最脆的市場=斷裂順序的領先樣本。跨關時:核對台/日回撤是否跟進加速;本身不驅動任何倉位動作。</li>
     <li><b>日本 JPX+USDJPY</b>(委託買い残週頻+円距 63 日高)——意義:日本引信=円 carry 平倉的 flash 型(2024-08 樣態),非融資慢頂型。円急升(fx 回撤走深)時:對 V 轉行情提高警覺,與台股高波動段一起讀。</li>
+    <li><b>AI 算力信用</b>(onvista 法蘭克福收盤,2026-11-04 新增)——意義:AI 雲端算力業者借錢的成本。CoreWeave 9% 2031 公司債殖利率一年前約 9.4%,2026-10 債務恐慌衝到 15% 以上;Nebius 4.5% 2034 可轉債股價遠低於轉換價,價格幾乎只反映信用。兩者一起走壞=市場在打折整個族群,不是單一公司。只記讀值,不設門檻、不推播;殖利率年複利、到期還 100 自算(對 onvista 差 &lt;0.05pp)。</li>
   </ul>
   <b>口徑</b>:「回撤」=距 252 觀測日(週頻=52 週)內高點,逐日僅用當日已知資訊、無前視,創新高時=0;「水位」=現值在近 3 年分佈的百分位——回撤答「跌多少」、水位答「堆多高」。<br>
   歷史曲線含 backfill.json 回填(build_backfill.py 生成);日本回填與水位=JPX 過去推移表「制度+一般合計」口徑,與 live 委託口徑差約 0.1%,僅供顯示。
@@ -160,6 +161,7 @@ function render(){
     H.forEach(h => { if (h[k] != null) m.set(h.date, h[k]); });
     return [...m.entries()].sort((a,b) => a[0] < b[0] ? -1 : 1).map(([d,v]) => ({ d, v }));
   };
+  const cs = k => ((DATA.credit || {})[k] || []).map(([d,v]) => ({ d, v }));   // ⑪ 一年序列,每輪整段重抓
 
   // ① G2
   const g2s = L.G3 ? 'critical' : L.G2 ? 'warn' : (L.G2 === null ? 'serious' : 'good');
@@ -245,6 +247,15 @@ function render(){
       <div class="spark" id="sp_jp"><svg></svg><div class="tip"></div><div class="cap">買い残回撤 %(週頻,近 ${hp('jp_dd').length} 筆)</div></div>
       <div class="spark" id="sp_fx"><svg></svg><div class="tip"></div><div class="cap">USDJPY 距 63 日高 %(近 ${hp('fx_dd').length} 筆)</div></div>
     </div>
+  </div>
+  <div class="card wide">
+    <div class="flag"><span class="name">⑪ AI 算力信用(觀察)</span></div>
+    <div class="hero">${L.crwv_ytm==null?'—':L.crwv_ytm.toFixed(1)+'%'}<small> CoreWeave 9% 2031 公司債殖利率(價 ${L.crwv_px==null?'—':L.crwv_px.toFixed(2)}${L.crwv_chg20==null?'':',20 日 '+(L.crwv_chg20>0?'+':'')+L.crwv_chg20.toFixed(1)+'pp'})</small></div>
+    <div class="sub">Nebius 4.5% 2034 可轉債 <b>${L.nbis_px==null?'—':L.nbis_px.toFixed(2)}</b>${L.nbis_chg20==null?'':'(20 日 '+pct(L.nbis_chg20)+')'}|發行價 100、轉換價 $324.65|資料日 ${L.credit_date||'—'}<br>onvista 法蘭克福收盤;殖利率=年複利、到期還 100;只記讀值,不設門檻、不推播(2026-11-04 新增)</div>
+    <div style="display:grid;gap:0 16px;grid-template-columns:1fr 1fr">
+      <div class="spark" id="sp_crwv"><svg></svg><div class="tip"></div><div class="cap">CoreWeave 殖利率 %(近 ${cs('crwv_ytm').length} 筆)</div></div>
+      <div class="spark" id="sp_nbis"><svg></svg><div class="tip"></div><div class="cap">Nebius 可轉債價格(近 ${cs('nbis_px').length} 筆)</div></div>
+    </div>
   </div>`;
 
   spark('sp_vix', hp('vix_p'), v => 'p'+Math.round(v*100));
@@ -259,6 +270,8 @@ function render(){
   spark('sp_kr', hp('kr_dd'), v => (v*100).toFixed(1)+'%');
   spark('sp_jp', hp('jp_dd'), v => (v*100).toFixed(1)+'%');
   spark('sp_fx', hp('fx_dd'), v => (v*100).toFixed(1)+'%');
+  spark('sp_crwv', cs('crwv_ytm'), v => v.toFixed(1)+'%');
+  spark('sp_nbis', cs('nbis_px'), v => v.toFixed(2));
 }
 
 Promise.all([

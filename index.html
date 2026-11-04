@@ -88,6 +88,7 @@ footer b{color:var(--ink)}
     <li><b>韓國 KOFIA</b>(信用融資餘額,日頻;關卡 −10%/−20%)——意義:同一道浪裡槓桿最脆的市場=斷裂順序的領先樣本。跨關時:核對台/日回撤是否跟進加速;本身不驅動任何倉位動作。</li>
     <li><b>日本 JPX+USDJPY</b>(委託買い残週頻+円距 63 日高)——意義:日本引信=円 carry 平倉的 flash 型(2024-08 樣態),非融資慢頂型。円急升(fx 回撤走深)時:對 V 轉行情提高警覺,與台股高波動段一起讀。</li>
     <li><b>AI 算力信用</b>(onvista 法蘭克福收盤,2026-11-04 新增)——意義:AI 雲端算力業者借錢的成本。CoreWeave 9% 2031 公司債殖利率一年前約 9.4%,2026-10 債務恐慌衝到 15% 以上;Nebius 4.5% 2034 可轉債股價遠低於轉換價,價格幾乎只反映信用。兩者一起走壞=市場在打折整個族群,不是單一公司。只記讀值,不設門檻、不推播;殖利率年複利、到期還 100 自算(對 onvista 差 &lt;0.05pp)。</li>
+    <li><b>可轉債贖回條件</b>(FinMind 日收盤,2026-11-04 新增)——意義:可轉債常見條款「收盤連續 30 個營業日 ≥ 轉換價 130%,公司得按面額贖回」,等於逼持有人轉換。有可轉債的公司或持有人有理由把股價撐在門檻上;條件達成、轉換完成後,撐價的理由就少了。目前追天品 6199(天品三 104.6、天品四 114.8,主辦承銷群益金鼎),只記天數與推估日,第一次滿 30 天或長期連續後中斷才推播。</li>
   </ul>
   <b>口徑</b>:「回撤」=距 252 觀測日(週頻=52 週)內高點,逐日僅用當日已知資訊、無前視,創新高時=0;「水位」=現值在近 3 年分佈的百分位——回撤答「跌多少」、水位答「堆多高」。<br>
   歷史曲線含 backfill.json 回填(build_backfill.py 生成);日本回填與水位=JPX 過去推移表「制度+一般合計」口徑,與 live 委託口徑差約 0.1%,僅供顯示。
@@ -256,7 +257,12 @@ function render(){
       <div class="spark" id="sp_crwv"><svg></svg><div class="tip"></div><div class="cap">CoreWeave 殖利率 %(近 ${cs('crwv_ytm').length} 筆)</div></div>
       <div class="spark" id="sp_nbis"><svg></svg><div class="tip"></div><div class="cap">Nebius 可轉債價格(近 ${cs('nbis_px').length} 筆)</div></div>
     </div>
-  </div>`;
+  </div>
+  ${(L.cb_watch || []).length ? `<div class="card wide">
+    <div class="flag"><span class="name">⑫ 可轉債贖回條件(觀察)</span></div>
+    ${L.cb_watch.map(x => `<div class="sub"><b>${x.name}(${x.bond})</b> 收盤 ${x.close}／門檻 ${x.th}(轉換價 ${x.conv} ×130%)|連續 <b>${x.streak}</b>/30 天${x.eta ? '|約 ' + x.eta + ' 滿 30' : '|<b>已滿 30</b>'}|資料日 ${x.date}</div>`).join('')}
+    <div class="sub">收盤連續 30 個營業日 ≥ 轉換價 130%,公司得於其後 30 個營業日內按面額現金贖回(=逼轉換;天品三發行辦法第十八條)。第一次滿 30 天或連 10 天以上後中斷會推播(2026-11-04 新增)</div>
+  </div>` : ''}`;
 
   spark('sp_vix', hp('vix_p'), v => 'p'+Math.round(v*100));
   spark('sp_vxn', hp('vxn_p'), v => 'p'+Math.round(v*100));

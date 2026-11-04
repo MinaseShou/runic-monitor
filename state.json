@@ -4214,7 +4214,7 @@
    "jp_dd": -0.0794,
    "jp_level": 0,
    "jp_lvl_pct": null,
-   "fx_dd": -0.012,
+   "fx_dd": -0.0108,
    "fx_level": 0,
    "vxn_p": 0.96,
    "vxn_hi": true,
@@ -4247,7 +4247,7 @@
    "py_gate": true,
    "py_gate_until": "2026-11-06",
    "py_ret2": -0.0439,
-   "maint": null,
+   "maint": 163.24,
    "crwv_ytm": 16.65,
    "crwv_px": 78.93,
    "crwv_chg20": 3.36,
@@ -4300,7 +4300,7 @@
   "jp_dd": -0.0794,
   "jp_level": 0,
   "jp_lvl_pct": null,
-  "fx_dd": -0.012,
+  "fx_dd": -0.0108,
   "fx_level": 0,
   "vxn_p": 0.96,
   "vxn_hi": true,
@@ -4333,7 +4333,7 @@
   "py_gate": true,
   "py_gate_until": "2026-11-06",
   "py_ret2": -0.0439,
-  "maint": null,
+  "maint": 163.24,
   "crwv_ytm": 16.65,
   "crwv_px": 78.93,
   "crwv_chg20": 3.36,
@@ -5272,7 +5272,8 @@
   "2026-10-29": 177.59,
   "2026-10-30": 170.57,
   "2026-11-02": 170.6,
-  "2026-11-03": 161.21
+  "2026-11-03": 161.21,
+  "2026-11-04": 163.24
  },
  "credit": {
   "crwv_ytm": [

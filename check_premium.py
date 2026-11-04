@@ -603,6 +603,37 @@ try:
 except Exception as e:
     log_line(f'WARN:⑪ AI 算力信用段失敗 {type(e).__name__}(本輪 N/A)')
 
+# ---------- ⑫ 可轉債贖回條件(觀察;2026-11-04 翔:天品 6199 兩檔可轉債,追「收盤連續 30 個營業日 ≥ 轉換價 130%」) ----------
+# 條款=天品三發行及轉換辦法第十八條(掃描檔已讀:滿 30 天後公司得於 30 個營業日內寄 30 日期滿的收回通知、按面額現金贖回);
+# 天品四觀測站同寫第 18 條、原文未讀。主辦承銷都是群益金鼎。轉換價調整時改這裡;過了 until 就不顯示。
+# 第一次滿 30 天、或連 10 天以上之後中斷,開 Issue。滿 30 天的推估日只扣週末。
+CB_WATCH = [dict(sid='6199', name='天品三', bond='61993', conv=104.6, until='2026-12-31'),
+            dict(sid='6199', name='天品四', bond='61994', conv=114.8, until='2026-12-31')]
+cb_watch = []
+try:
+    _cbpx = {}
+    for w in CB_WATCH:
+        if str(today.date()) > w['until']:
+            continue
+        if w['sid'] not in _cbpx:
+            _d = fetch_finmind('TaiwanStockPrice', w['sid'], str((today - pd.Timedelta(days=120)).date()), str(today.date()))
+            _cbpx[w['sid']] = pd.Series(_d['close'].astype(float).values, index=pd.to_datetime(_d['date']))
+        _c = _cbpx[w['sid']]
+        _th = round(w['conv'] * 1.3, 2)
+        _n = 0
+        for _v in _c[::-1]:
+            if _v < _th:
+                break
+            _n += 1
+        _rest = max(0, 30 - _n)
+        _eta = str(pd.bdate_range(_c.index[-1] + pd.Timedelta(days=1), periods=_rest)[-1].date()) if _rest else None
+        cb_watch.append(dict(name=w['name'], bond=w['bond'], conv=w['conv'], th=_th, close=float(_c.iloc[-1]),
+                             date=str(_c.index[-1].date()), streak=_n, eta=_eta))
+except Exception as e:
+    log_line(f'WARN:⑫ 可轉債贖回條件段失敗 {type(e).__name__}(本輪 N/A)')
+cb_detail = ';'.join(f"{x['name']}({x['bond']})收盤 {x['close']:g}/門檻 {x['th']:g},連續 {x['streak']} 天"
+                     + (f"、約 {x['eta']} 滿 30" if x['eta'] else '、已滿 30') for x in cb_watch) or 'N/A'
+
 # ---------- 狀態更新與通知(翻轉才響) ----------
 rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=cost_bp,
            contract=contract, vix_p=round(vix_p, 3) if vix_p == vix_p else None,
@@ -625,7 +656,7 @@ rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=
            vol60=turb_vol60, vol60_pct=turb_vol60_pct, count60=turb_count60, turb_on=turb_on,
            py_gate=py_gate, py_gate_until=py_until, py_ret2=py_ret2,
            maint=maint, crwv_ytm=crwv_ytm, crwv_px=crwv_px, crwv_chg20=crwv_chg20,
-           nbis_px=nbis_px, nbis_chg20=nbis_chg20, credit_date=credit_date)
+           nbis_px=nbis_px, nbis_chg20=nbis_chg20, credit_date=credit_date, cb_watch=cb_watch)
 hist = [h for h in hist if h.get('date') != rec['date']]
 hist = sorted(hist + [rec], key=lambda h: h['date'])[-120:]
 
@@ -696,6 +727,19 @@ elif py_event == 'weekly':
     notify('🟢 皮媞亞門自然解除(週訊號日)',
            f'{py_detail}。依最新週訊號回場。')
 
+# ⑫ 可轉債贖回條件(新資料日才判;第一次滿 30 天、或連 10 天以上後中斷)
+_prev_cb = {x.get('bond'): x for x in (prev.get('cb_watch') or [])}
+for x in cb_watch:
+    p = _prev_cb.get(x['bond'])
+    if p is None or p.get('date') == x['date']:
+        continue
+    if x['streak'] >= 30 > p.get('streak', 0):
+        notify(f"🟠 {x['name']} 收盤連續 30 天 ≥ 轉換價 130%",
+               f"{cb_detail}。公司可在之後 30 個營業日內寄收回通知、按面額現金贖回(=逼轉換);撐價的理由可能少一個。")
+    elif x['streak'] == 0 and p.get('streak', 0) >= 10:
+        notify(f"🟡 {x['name']} 連續天數中斷",
+               f"收盤 {x['close']:g} < 門檻 {x['th']:g}(原本連續 {p['streak']} 天)。{cb_detail}")
+
 recent = [h['cost_bp'] for h in hist[-ARM_DAYS:] if h.get('cost_bp') is not None]
 slow_armed = len(recent) >= ARM_DAYS and all(b <= ARM_BP for b in recent)
 if slow_armed and not prev.get('slow_armed'):
@@ -707,7 +751,7 @@ STATE.write_text(json.dumps(dict(history=hist, last=dict(rec, slow_armed=slow_ar
 log_line(f"{rec['date']} {contract or '-'} cost={cost_str} | G2={g2} G3={g3} "
          f"(vixp={vix_p:.2f} ratiop={ratio_p:.2f}) slow_armed={slow_armed} | margin={margin_state}({margin_detail}) "
          f"| TPEX={tp_detail} | KR={kr_detail} | JP={jp_detail} {fx_detail} | RV={rv_detail} lv{tw_stress} | {vxn_detail} hi={vxn_hi} "
-         f"| 燃料={fuel_on}({fuel_detail}) 湍流={turb_on}({turb_detail}) | 皮媞亞門={py_gate}({py_detail}) | 信用={credit_detail}")
+         f"| 燃料={fuel_on}({fuel_detail}) 湍流={turb_on}({turb_detail}) | 皮媞亞門={py_gate}({py_detail}) | 信用={credit_detail} | 可轉債={cb_detail}")
 
 # ---------- README 儀表(GitHub 首頁即儀表) ----------
 def lamp(cond_bad, cond_warn):
@@ -734,12 +778,14 @@ readme = f"""# RUNiC Monitor(十一面旗,每交易日 ~15:00 台北自動更新
 | ⑨ 湍流旗(崩盤雙軸) | {'🟠 ON' if turb_on else ('🟢 OFF' if turb_on is not None else '⚪ UNKNOWN')} | {turb_detail},門檻=vol60 p≥90 |
 | ⑩ 皮媞亞門日檢 | {('🔴 門中(空倉)' if py_gate else '🟢 正常') if py_gate is not None else '⚪ UNKNOWN'} | {py_detail} |
 | ⑪ AI 算力信用(觀察) | ⚪ 觀察 | {credit_detail} |
+| ⑫ 可轉債贖回條件(觀察) | ⚪ 觀察 | {cb_detail} |
 
 口徑:回撤=距 252 觀測日(週頻=52 週)內高點(無前視);水位=近 3 年分佈百分位。
 ③b/⑥/⑦ 為 2026-07-17 新增(G2 美系口徑盲區補丁);regime 判別維持上市口徑,含櫃=同門檻 shadow;⑥⑦ 關卡未回測。
 ⑧⑨ 為 2026-07-21 新增(崩盤研究 Phase 1/3 雙軸蛛絲馬跡):燃料=投機槓桿加到頂(高燃料時 60 日內遇快崩率 46% vs base 27%)、湍流=顛簸的頂才崩;皆為描述非預測,外生零前兆型(2020 COVID 式)是共同盲區,解讀詳儀表頁。
 ⑩ 為 2026-08-05 新增:皮媞亞 V2.2 門的日頻鬧鐘(TAIEX 2日≤−3% 出清/空倉中 2日≥+2% 回場/re-arm)——**策略內生風控鏡像,非市場層旗**;本旗不產生新訊號,執行以週頻 runner 為準。
 ⑪ 為 2026-11-04 新增:AI 雲端算力業者的信用面(CoreWeave 9% 2031 公司債殖利率、Nebius 4.5% 2034 可轉債價格;onvista 法蘭克福收盤,殖利率年複利自算)——只記讀值,不設門檻、不推播。
+⑫ 為 2026-11-04 新增:個股可轉債的強制贖回條件(收盤連續 30 個營業日 ≥ 轉換價 130%,公司得按面額贖回=逼轉換);目前追天品 6199 的天品三/天品四(主辦承銷群益金鼎),到 2026-12-31。第一次滿 30 天或連 10 天以上後中斷會推播。
 跨關卡/翻轉時自動開 Issue(=手機推播)。全歷史見 [log.md](log.md) 與 git 歷史。
 定位=context 非訊號(「市場層風險訊號永不疊加本書」鐵律);雙軌之雲端軌,Mac launchd 為備援。
 """

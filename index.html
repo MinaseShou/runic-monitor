@@ -38,6 +38,13 @@ h1{font-size:20px; letter-spacing:.5px}
 .cards{display:grid; grid-template-columns:1fr; gap:10px}
 @media(min-width:640px){.cards{grid-template-columns:1fr 1fr}}
 .card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px 16px}
+.card{min-width:0}
+.bk{overflow-x:auto; margin-top:8px}
+.bk table{width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums}
+.bk th,.bk td{padding:4px 6px; text-align:right; border-bottom:1px solid var(--grid); white-space:nowrap}
+.bk th:first-child,.bk td:first-child{text-align:left; white-space:normal}
+.bk th{color:var(--ink2); font-weight:600; font-size:12px}
+.bk td.bg{color:var(--ink2); font-size:12px; padding-top:8px; text-align:left}
 .card.wide{grid-column:1/-1}
 .flag{display:flex; align-items:center; gap:8px; margin-bottom:6px}
 .flag .name{font-weight:600; font-size:14px}
@@ -153,6 +160,19 @@ function spark(id, pts, fmt){
   svg.onmouseleave = () => tip.style.display = 'none';
 }
 
+function basketTable(B){               // ⑪ 擴充籃:一般債看殖利率,可轉債只看價格;漲跌一律用價格
+  if (!B.length) return '';
+  const p = v => v == null ? '—' : (v > 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
+  let g = '', rows = '';
+  B.forEach(b => {
+    if (b.group !== g) { g = b.group; rows += `<tr><td colspan="5" class="bg">${g}</td></tr>`; }
+    rows += `<tr><td>${b.name}</td><td>${b.px.toFixed(2)}</td><td>${b.ytm == null ? '' : b.ytm.toFixed(1) + '%'}</td><td>${p(b.chg1)}</td><td>${p(b.chg20)}</td></tr>`;
+  });
+  const d = [...new Set(B.map(b => b.date))].sort();
+  return `<div class="bk"><table><tr><th>擴充籃</th><th>價格</th><th>殖利率</th><th>1 日</th><th>20 日</th></tr>${rows}</table></div>
+    <div class="sub">價格與漲跌=onvista 日線最後一筆收盤(${d[0] === d[d.length - 1] ? d[0] : d[0] + '～' + d[d.length - 1]});殖利率=onvista 依最新報價算的(只列一般債);可轉債跌幅含股價下跌造成的轉換權價值流失,不全是信用。德國交易所參考價,成交量多半是 0。</div>`;
+}
+
 function render(){
   if (!DATA) return;
   const L = DATA.last, H = DATA.history || [];
@@ -257,6 +277,7 @@ function render(){
       <div class="spark" id="sp_crwv"><svg></svg><div class="tip"></div><div class="cap">CoreWeave 殖利率 %(近 ${cs('crwv_ytm').length} 筆)</div></div>
       <div class="spark" id="sp_nbis"><svg></svg><div class="tip"></div><div class="cap">Nebius 可轉債價格(近 ${cs('nbis_px').length} 筆)</div></div>
     </div>
+    ${basketTable((DATA.credit || {}).basket || [])}
   </div>
   ${(L.cb_watch || []).length ? `<div class="card wide">
     <div class="flag"><span class="name">⑫ 可轉債贖回條件(觀察)</span></div>

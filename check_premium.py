@@ -23,6 +23,7 @@
    🔴描述卡非預測器、不得調曝險:11 項過熱指標對次月動能反轉全部不顯著,且該資訊即使已知也不可交易
    (反轉 L/S 毛 -1.70%/月、七年虧六年);受「市場層風險訊號永不疊加本書」鐵律約束(0 勝 5 敗)。
 ⑪ AI 算力信用(2026-11-04 翔):CoreWeave 9% 2031 公司債殖利率+Nebius 4.5% 2034 可轉債價格(onvista 法蘭克福收盤);
+   同日加擴充籃(CoreWeave 其他債、IREN/TeraWulf/Core Scientific 可轉債、Oracle、Intel/Micron 對照);
    只記讀值與一年序列,不設門檻、不推播。
 口徑(2026-07-14 翔核定統一):「回撤」=距 252 觀測日(週頻=52 週)內高點,逐日僅用當日已知資訊、無前視;
 「水位」=現值在近 3 年(756 觀測)分佈的百分位——回撤答「跌多少」、水位答「堆多高」,兩面並列。
@@ -558,13 +559,14 @@ CRWV_BOND = ('USU2069EAB66', 9.0, pd.Timestamp('2031-02-01'))   # CoreWeave 9.00
 NBIS_BOND = 'US63954QAQ91'                                       # Nebius 4.50% 2034-02 可轉債(2026-08 發行,轉換價 $324.65)
 
 
-def onvista_closes(isin):
+def onvista_closes(isin, with_snap=False):
     s = requests.get(f'{ONV}/bonds/ISIN:{isin}/snapshot', headers=UA, timeout=30).json()
     q = next((x for x in s['quoteList']['list'] if x['market']['codeMarket'] == '_FRA'), s['quote'])
     h = requests.get(f"{ONV}/instruments/BOND/{s['instrument']['entityValue']}/eod_history", headers=UA, timeout=30,
                      params={'idNotation': q['market']['idNotation'], 'range': 'Y1',
                              'startDate': str((today - pd.Timedelta(days=365)).date())}).json()
-    return pd.Series(h['last'], index=pd.to_datetime(h['datetimeLast'], unit='s').normalize()).dropna()
+    c = pd.Series(h['last'], index=pd.to_datetime(h['datetimeLast'], unit='s').normalize()).dropna()
+    return (c, s) if with_snap else c
 
 
 def bond_ytm(px, cpn, mat, asof):
@@ -602,6 +604,38 @@ try:
                      + (f',20 日 {nbis_chg20:+.1%}' if nbis_chg20 is not None else '') + ')')
 except Exception as e:
     log_line(f'WARN:⑪ AI 算力信用段失敗 {type(e).__name__}(本輪 N/A)')
+
+# ⑪ 擴充籃(2026-11-04 翔:「看半導體相關的債比較有用，特別是算力公司那些」)——同樣只記讀值。
+# 一般債的殖利率直接用 onvista 算的;可轉債只看價格(股價跌時轉換權先蒸發,跌幅不全是信用)。漲跌都用價格算。
+CREDIT_BASKET = [  # (分組, 名稱, ISIN, 'bond'=一般債 / 'cb'=可轉債)
+    ('算力', 'CoreWeave 9.75% 2031-10', 'USU2069EAC40', 'bond'),
+    ('算力', 'CoreWeave 9.625% 2032', 'USU2069EAE06', 'bond'),
+    ('算力', 'CoreWeave 2.875% 2033 可轉債', 'US21873SAL25', 'cb'),
+    ('算力', 'IREN 1% 2033 可轉債', 'US46270CAL37', 'cb'),
+    ('算力', 'TeraWulf 零息 2032 可轉債', 'US88080TAE47', 'cb'),
+    ('算力', 'Core Scientific 零息 2031 可轉債', 'US21874AAE64', 'cb'),
+    ('資料中心買家', 'Oracle 4.7% 2034', 'US68389XCT00', 'bond'),
+    ('晶片對照', 'Intel 5.2% 2033', 'US458140CG35', 'bond'),
+    ('晶片對照', 'Micron 5.875% 2033', 'US595112CB74', 'bond'),
+]
+_prev_basket = {b['isin']: b for b in ((state.get('credit') or {}).get('basket') or [])} if isinstance(state, dict) else {}
+basket = []
+for grp, name, isin, kind in CREDIT_BASKET:
+    try:
+        _c, _s = onvista_closes(isin, with_snap=True)
+        ytm = (_s.get('bondsFigures') or {}).get('yieldToMaturity') if kind == 'bond' else None
+        basket.append(dict(group=grp, name=name, isin=isin, kind=kind, px=float(_c.iloc[-1]), date=str(_c.index[-1].date()),
+                           ytm=round(float(ytm), 2) if ytm is not None else None,
+                           chg1=round(float(_c.iloc[-1] / _c.iloc[-2] - 1), 4) if len(_c) > 1 else None,
+                           chg20=round(float(_c.iloc[-1] / _c.iloc[-21] - 1), 4) if len(_c) > 20 else None))
+    except Exception as e:
+        log_line(f'WARN:⑪ 擴充籃 {name} 失敗 {type(e).__name__}(沿用上一輪)')
+        if isin in _prev_basket:
+            basket.append(_prev_basket[isin])
+credit['basket'] = basket
+if basket:
+    credit_detail += ';擴充籃 20 日:' + '、'.join(
+        f"{b['name']} {b['chg20']:+.1%}" for b in basket if b.get('chg20') is not None)
 
 # ---------- ⑫ 可轉債贖回條件(觀察;2026-11-04 翔:天品 6199 兩檔可轉債,追「收盤連續 30 個營業日 ≥ 轉換價 130%」) ----------
 # 條款=天品三發行及轉換辦法第十八條(掃描檔已讀:滿 30 天後公司得於 30 個營業日內寄 30 日期滿的收回通知、按面額現金贖回);
@@ -784,7 +818,7 @@ readme = f"""# RUNiC Monitor(十一面旗,每交易日 ~15:00 台北自動更新
 ③b/⑥/⑦ 為 2026-07-17 新增(G2 美系口徑盲區補丁);regime 判別維持上市口徑,含櫃=同門檻 shadow;⑥⑦ 關卡未回測。
 ⑧⑨ 為 2026-07-21 新增(崩盤研究 Phase 1/3 雙軸蛛絲馬跡):燃料=投機槓桿加到頂(高燃料時 60 日內遇快崩率 46% vs base 27%)、湍流=顛簸的頂才崩;皆為描述非預測,外生零前兆型(2020 COVID 式)是共同盲區,解讀詳儀表頁。
 ⑩ 為 2026-08-05 新增:皮媞亞 V2.2 門的日頻鬧鐘(TAIEX 2日≤−3% 出清/空倉中 2日≥+2% 回場/re-arm)——**策略內生風控鏡像,非市場層旗**;本旗不產生新訊號,執行以週頻 runner 為準。
-⑪ 為 2026-11-04 新增:AI 雲端算力業者的信用面(CoreWeave 9% 2031 公司債殖利率、Nebius 4.5% 2034 可轉債價格;onvista 法蘭克福收盤,殖利率年複利自算)——只記讀值,不設門檻、不推播。
+⑪ 為 2026-11-04 新增:AI 雲端算力業者的信用面(CoreWeave 9% 2031 公司債殖利率、Nebius 4.5% 2034 可轉債價格;onvista 法蘭克福收盤,殖利率年複利自算)——只記讀值,不設門檻、不推播。同日加擴充籃:CoreWeave 其他兩檔一般債與可轉債、IREN/TeraWulf/Core Scientific 可轉債、Oracle 2034(資料中心買家)、Intel/Micron 2033(晶片對照);一般債殖利率用 onvista 的數字,漲跌一律用價格。
 ⑫ 為 2026-11-04 新增:個股可轉債的強制贖回條件(收盤連續 30 個營業日 ≥ 轉換價 130%,公司得按面額贖回=逼轉換);目前追天品 6199 的天品三/天品四(主辦承銷群益金鼎),到 2026-12-31。第一次滿 30 天或連 10 天以上後中斷會推播。
 跨關卡/翻轉時自動開 Issue(=手機推播)。全歷史見 [log.md](log.md) 與 git 歷史。
 定位=context 非訊號(「市場層風險訊號永不疊加本書」鐵律);雙軌之雲端軌,Mac launchd 為備援。

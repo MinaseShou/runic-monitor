@@ -22,6 +22,8 @@
    預算 concentration.json、本檔只讀(無 FinLab 依賴,讀不到→UNKNOWN)。史上僅 2026-05/06 亮過。
    🔴描述卡非預測器、不得調曝險:11 項過熱指標對次月動能反轉全部不顯著,且該資訊即使已知也不可交易
    (反轉 L/S 毛 -1.70%/月、七年虧六年);受「市場層風險訊號永不疊加本書」鐵律約束(0 勝 5 敗)。
+⑪ AI 算力信用(2026-11-04 翔):CoreWeave 9% 2031 公司債殖利率+Nebius 4.5% 2034 可轉債價格(onvista 法蘭克福收盤);
+   只記讀值與一年序列,不設門檻、不推播。
 口徑(2026-07-14 翔核定統一):「回撤」=距 252 觀測日(週頻=52 週)內高點,逐日僅用當日已知資訊、無前視;
 「水位」=現值在近 3 年(756 觀測)分佈的百分位——回撤答「跌多少」、水位答「堆多高」,兩面並列。
 資料:FinMind 免 token(TXO+TX+TAIEX)+CBOE 官方 CSV(VIX/VVIX/VXN)+TPEx 官方+KOFIA+JPX+FRED/Yahoo;fail=靜默 skip 留 log"""
@@ -547,6 +549,60 @@ try:
 except Exception as e:
     log_line(f'WARN:⑩ 皮媞亞門段失敗 {type(e).__name__}(本輪 UNKNOWN)')
 
+# ---------- ⑪ AI 算力信用(觀察;2026-11-04 翔:「CoreWeave 公司債殖利率」和「Nebius 可轉債價格」加進監控站) ----------
+# onvista 公開 API、法蘭克福收盤(沒有法蘭克福就用 onvista 預設市場);只記讀值與一年序列,不設門檻、不推播。
+# 殖利率自算:年複利(ISMA)、到期還 100,跟 onvista 自己算的差 <0.05pp(2026-11-04 四檔對過)。
+# Nebius 只看價格:2034 這檔本金會增值,用到期還 100 算殖利率會偏低。
+ONV = 'https://api.onvista.de/api/v1'
+CRWV_BOND = ('USU2069EAB66', 9.0, pd.Timestamp('2031-02-01'))   # CoreWeave 9.00% 2031-02 Reg.S(17.5 億美元,2025-07 發行)
+NBIS_BOND = 'US63954QAQ91'                                       # Nebius 4.50% 2034-02 可轉債(2026-08 發行,轉換價 $324.65)
+
+
+def onvista_closes(isin):
+    s = requests.get(f'{ONV}/bonds/ISIN:{isin}/snapshot', headers=UA, timeout=30).json()
+    q = next((x for x in s['quoteList']['list'] if x['market']['codeMarket'] == '_FRA'), s['quote'])
+    h = requests.get(f"{ONV}/instruments/BOND/{s['instrument']['entityValue']}/eod_history", headers=UA, timeout=30,
+                     params={'idNotation': q['market']['idNotation'], 'range': 'Y1',
+                             'startDate': str((today - pd.Timedelta(days=365)).date())}).json()
+    return pd.Series(h['last'], index=pd.to_datetime(h['datetimeLast'], unit='s').normalize()).dropna()
+
+
+def bond_ytm(px, cpn, mat, asof):
+    """Clean price -> annual-compounding (ISMA) yield; semiannual coupons, redeemed at 100."""
+    dates, d = [], mat
+    while d > asof:
+        dates.append(d)
+        d -= pd.DateOffset(months=6)
+    dates = dates[::-1]
+    dirty = px + cpn / 2 * (asof - d).days / (dates[0] - d).days
+    t = [(x - asof).days / 365.25 for x in dates]
+    pv = lambda y: sum((cpn / 2 + (100 if i == len(t) - 1 else 0)) / (1 + y) ** ti for i, ti in enumerate(t))
+    lo, hi = -0.5, 2.0
+    for _ in range(100):
+        mid = (lo + hi) / 2
+        lo, hi = (mid, hi) if pv(mid) > dirty else (lo, mid)
+    return mid * 100
+
+
+crwv_ytm = crwv_px = crwv_chg20 = nbis_px = nbis_chg20 = credit_date = None
+credit = state.get('credit', {}) if isinstance(state, dict) else {}
+credit_detail = 'N/A'
+try:
+    _cs, _ns = onvista_closes(CRWV_BOND[0]), onvista_closes(NBIS_BOND)
+    _ys = pd.Series({d: bond_ytm(p, CRWV_BOND[1], CRWV_BOND[2], d) for d, p in _cs.items()})
+    crwv_ytm, crwv_px, nbis_px = round(float(_ys.iloc[-1]), 2), float(_cs.iloc[-1]), float(_ns.iloc[-1])
+    crwv_chg20 = round(float(_ys.iloc[-1] - _ys.iloc[-21]), 2) if len(_ys) > 20 else None
+    nbis_chg20 = round(float(_ns.iloc[-1] / _ns.iloc[-21] - 1), 4) if len(_ns) > 20 else None
+    credit_date = str(max(_cs.index[-1], _ns.index[-1]).date())
+    credit = {'crwv_ytm': [[str(d.date()), round(float(v), 2)] for d, v in _ys.items()],
+              'nbis_px': [[str(d.date()), float(v)] for d, v in _ns.items()]}
+    credit_detail = (f'CoreWeave 9% 2031 殖利率 {crwv_ytm:.1f}%(價 {crwv_px:.2f},{_cs.index[-1].date()}'
+                     + (f',20 日 {crwv_chg20:+.1f}pp' if crwv_chg20 is not None else '') + ')'
+                     + f';Nebius 4.5% 2034 可轉債 {nbis_px:.2f}({_ns.index[-1].date()}'
+                     + (f',20 日 {nbis_chg20:+.1%}' if nbis_chg20 is not None else '') + ')')
+except Exception as e:
+    log_line(f'WARN:⑪ AI 算力信用段失敗 {type(e).__name__}(本輪 N/A)')
+
 # ---------- 狀態更新與通知(翻轉才響) ----------
 rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=cost_bp,
            contract=contract, vix_p=round(vix_p, 3) if vix_p == vix_p else None,
@@ -568,7 +624,8 @@ rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=
            conc_hhi=conc_hhi, conc_hhi_pct=conc_hhi_pct,
            vol60=turb_vol60, vol60_pct=turb_vol60_pct, count60=turb_count60, turb_on=turb_on,
            py_gate=py_gate, py_gate_until=py_until, py_ret2=py_ret2,
-           maint=maint)
+           maint=maint, crwv_ytm=crwv_ytm, crwv_px=crwv_px, crwv_chg20=crwv_chg20,
+           nbis_px=nbis_px, nbis_chg20=nbis_chg20, credit_date=credit_date)
 hist = [h for h in hist if h.get('date') != rec['date']]
 hist = sorted(hist + [rec], key=lambda h: h['date'])[-120:]
 
@@ -645,18 +702,18 @@ if slow_armed and not prev.get('slow_armed'):
     notify('🔔 保費慢開關上膛', f'連 {ARM_DAYS} 交易日 <= {ARM_BP}bp。見登記簿 spike-exit 案。')
 
 STATE.write_text(json.dumps(dict(history=hist, last=dict(rec, slow_armed=slow_armed), jp_hist=jp_hist,
-                                 tpex_hist=tpex_hist, maint_hist=maint_hist),
+                                 tpex_hist=tpex_hist, maint_hist=maint_hist, credit=credit),
                             ensure_ascii=False, indent=1))
 log_line(f"{rec['date']} {contract or '-'} cost={cost_str} | G2={g2} G3={g3} "
          f"(vixp={vix_p:.2f} ratiop={ratio_p:.2f}) slow_armed={slow_armed} | margin={margin_state}({margin_detail}) "
          f"| TPEX={tp_detail} | KR={kr_detail} | JP={jp_detail} {fx_detail} | RV={rv_detail} lv{tw_stress} | {vxn_detail} hi={vxn_hi} "
-         f"| 燃料={fuel_on}({fuel_detail}) 湍流={turb_on}({turb_detail}) | 皮媞亞門={py_gate}({py_detail})")
+         f"| 燃料={fuel_on}({fuel_detail}) 湍流={turb_on}({turb_detail}) | 皮媞亞門={py_gate}({py_detail}) | 信用={credit_detail}")
 
 # ---------- README 儀表(GitHub 首頁即儀表) ----------
 def lamp(cond_bad, cond_warn):
     return '🔴' if cond_bad else ('🟡' if cond_warn else '🟢')
 
-readme = f"""# RUNiC Monitor(十面旗,每交易日 ~15:00 台北自動更新)
+readme = f"""# RUNiC Monitor(十一面旗,每交易日 ~15:00 台北自動更新)
 
 **📊 儀表板:https://minaseshou.github.io/runic-monitor/**
 
@@ -676,11 +733,13 @@ readme = f"""# RUNiC Monitor(十面旗,每交易日 ~15:00 台北自動更新)
 | ⑧ 燃料旗(崩盤雙軸) | {'🟠 ON' if fuel_on else ('🟢 OFF' if fuel_on is not None else '⚪ UNKNOWN')} | {fuel_detail},門檻=量能 p≥90 且融資20日≥+5% |
 | ⑨ 湍流旗(崩盤雙軸) | {'🟠 ON' if turb_on else ('🟢 OFF' if turb_on is not None else '⚪ UNKNOWN')} | {turb_detail},門檻=vol60 p≥90 |
 | ⑩ 皮媞亞門日檢 | {('🔴 門中(空倉)' if py_gate else '🟢 正常') if py_gate is not None else '⚪ UNKNOWN'} | {py_detail} |
+| ⑪ AI 算力信用(觀察) | ⚪ 觀察 | {credit_detail} |
 
 口徑:回撤=距 252 觀測日(週頻=52 週)內高點(無前視);水位=近 3 年分佈百分位。
 ③b/⑥/⑦ 為 2026-07-17 新增(G2 美系口徑盲區補丁);regime 判別維持上市口徑,含櫃=同門檻 shadow;⑥⑦ 關卡未回測。
 ⑧⑨ 為 2026-07-21 新增(崩盤研究 Phase 1/3 雙軸蛛絲馬跡):燃料=投機槓桿加到頂(高燃料時 60 日內遇快崩率 46% vs base 27%)、湍流=顛簸的頂才崩;皆為描述非預測,外生零前兆型(2020 COVID 式)是共同盲區,解讀詳儀表頁。
 ⑩ 為 2026-08-05 新增:皮媞亞 V2.2 門的日頻鬧鐘(TAIEX 2日≤−3% 出清/空倉中 2日≥+2% 回場/re-arm)——**策略內生風控鏡像,非市場層旗**;本旗不產生新訊號,執行以週頻 runner 為準。
+⑪ 為 2026-11-04 新增:AI 雲端算力業者的信用面(CoreWeave 9% 2031 公司債殖利率、Nebius 4.5% 2034 可轉債價格;onvista 法蘭克福收盤,殖利率年複利自算)——只記讀值,不設門檻、不推播。
 跨關卡/翻轉時自動開 Issue(=手機推播)。全歷史見 [log.md](log.md) 與 git 歷史。
 定位=context 非訊號(「市場層風險訊號永不疊加本書」鐵律);雙軌之雲端軌,Mac launchd 為備援。
 """

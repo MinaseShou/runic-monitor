@@ -235,14 +235,14 @@ except Exception as e:
 def get_json_retry(url, params, timeout):
     # 瞬時 JSONDecodeError 單次重試(2026-08-08 加;8/3 維持率+8/7 TPEx 兩段兩例,
     # 皆深夜輪撞官網維護窗 pattern,端點事後直測皆活=瞬時非改版)
-    for attempt in (1, 2):
-        r = requests.get(url, params=params, headers=UA, timeout=timeout)
+    # 2026-11-06 連線中斷也重試:ChunkedEncodingError 在 requests.get 就丟出,10 月起害維持率段 8 次 UNKNOWN。
+    for attempt in (1, 2, 3):
         try:
-            return r.json()
-        except ValueError:
-            if attempt == 2:
+            return requests.get(url, params=params, headers=UA, timeout=timeout).json()
+        except (ValueError, requests.RequestException):
+            if attempt == 3:
                 raise
-            time.sleep(8)
+            time.sleep(8 * attempt)
 
 
 tpex_hist = dict(state.get('tpex_hist', {})) if isinstance(state, dict) else {}

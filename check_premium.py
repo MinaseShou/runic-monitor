@@ -8,7 +8,7 @@
 ③ 融資 regime(NORMAL/WARNING/SPIRAL;韓式螺旋判別,margin_regime 案:擇時判死僅監測)
    +上櫃/含櫃雙口徑並列(2026-07-17 翔核准;TPEx 官方源+state 快取增量;regime 判別維持上市口徑,含櫃=同門檻 shadow、翻轉通知)
 ④ 韓國融資進度條(KOFIA 日頻;回撤跨 -10%/-20% 通知)
-⑤ 日本槓桿+USDJPY(JPX 週頻 mtseisan 委託買い残+FRED 匯率;回撤跨 -10%/-20%、円距 63 日高跨 -3%/-6% 通知;純描述未回測)
+⑤ 日本槓桿+USDJPY(JPX 過去推移表委託買い残+FRED 匯率;回撤跨 -10%/-20%、円距 63 日高跨 -3%/-6% 通知;純描述未回測)
 ⑥ 台指 RV 本土壓力旗(20日RV+單日range 百分位;lv1=RV p85 或 range p95、lv2=RV p95 或 range p99;升級通知;2026-07-17 翔核准,關卡未回測)
 ⑦ VXN 科技 vol(CBOE;p252>=70% 亮一次;G2 美系口徑對亞洲/半導體去槓桿盲區補丁——2026-07-17 N=3 首 miss 案)
 ⑧ 燃料旗(2026-07-21 翔核准;崩盤研究 Phase1/3:量能 20 日均 p756>=0.90 且融資 20 日 >=+5%=高燃料;
@@ -367,43 +367,31 @@ jp_level = fx_level = None
 jp_lvl_pct = None
 jp_detail = fx_detail = 'N/A'
 try:
-    hp = requests.get('https://www.jpx.co.jp/markets/statistics-equities/margin/04.html',
-                      headers=UA, timeout=60)
-    for path, d8 in re.findall(r'href="(/markets/[^"]+?mtseisan(\d{8})00\.xls)"', hp.text):
-        key = f'{d8[:4]}-{d8[4:6]}-{d8[6:]}'
-        if key in jp_hist:
-            continue
+    # 2026-10 JPX 改版:都從過去推移表(05.html)取委託買残金額。mtsk.xls=2002 起(c4),xlsx=近幾週(c8 制度+c12 一般)
+    hp = requests.get('https://www.jpx.co.jp/markets/statistics-equities/margin/05.html', headers=UA, timeout=60)
+    links = [p for p in re.findall(r'href="(/markets/[^"]+?\.xlsx?)"', hp.text) if p.endswith('.xlsx') or 'mtsk' in p]
+    if not any(p.endswith('.xlsx') for p in links) or not any('mtsk' in p for p in links):
+        raise ValueError(f'JPX 推移表連結不齊 {links}')
+    parts = []
+    for path in links:
         rx = requests.get(f'https://www.jpx.co.jp{path}', headers=UA, timeout=60)
         dfj = pd.read_excel(io.BytesIO(rx.content), sheet_name=0, header=None)
-        idx = dfj.index[dfj.apply(lambda r: r.astype(str).str.contains('二市場計').any(), axis=1)][0]
-        vals = pd.to_numeric(dfj.iloc[idx + 1], errors='coerce').dropna().tolist()
-        buy = float(vals[2])  # 金額列:委託売残,前週比,委託買残(百万円),...
-        if buy < 1e6:
-            raise ValueError(f'JPX 委託買残解析異常 {key}={buy}')
-        jp_hist[key] = buy
+        num = lambda c: pd.to_numeric(dfj[c], errors='coerce')
+        buy = num(8) + num(12) if path.endswith('.xlsx') else num(4)
+        parts.append(pd.Series(buy.values, index=pd.to_datetime(dfj[0], errors='coerce', format='mixed')).dropna())
+    jpa = pd.concat(parts)
+    jpa = jpa[jpa.index.notna()]
+    jpa = jpa[~jpa.index.duplicated(keep='last')].sort_index()
+    if not 3e6 < jpa.iloc[-1] < 12e6:
+        raise ValueError(f'JPX 委託買残解析異常 {jpa.index[-1]}={jpa.iloc[-1]}')
+    jp_hist.update({str(k)[:10]: float(v) for k, v in jpa.items()})
     jp_hist = dict(sorted(jp_hist.items())[-400:])
     if jp_hist:
         ks = sorted(jp_hist)
         jp_last = jp_hist[ks[-1]]
         jp_dd = float(jp_last / max(jp_hist[k] for k in ks[-52:]) - 1)
-        # 水位分位:JPX 過去推移表(制度+一般合計,近 156 週)+ live 尾端;rank 對 ~0.1% 口徑縫不敏感
-        jp_lvl_pct = None
-        try:
-            hp6 = requests.get('https://www.jpx.co.jp/markets/statistics-equities/margin/06.html',
-                               headers=UA, timeout=60)
-            arch = []
-            for path6 in re.findall(r'href="(/markets/[^"]+?\.xls)"', hp6.text):
-                rx6 = requests.get(f'https://www.jpx.co.jp{path6}', headers=UA, timeout=60)
-                dfa = pd.read_excel(io.BytesIO(rx6.content), sheet_name=0, header=None)[[0, 4]]
-                dfa.columns = ['d', 'buy']
-                dfa['d'] = pd.to_datetime(dfa['d'], errors='coerce')
-                dfa['buy'] = pd.to_numeric(dfa['buy'], errors='coerce')
-                arch.append(dfa.dropna())
-            jpa = pd.concat(arch).drop_duplicates('d').set_index('d').sort_index()['buy']
-            w = list(jpa.tail(156)) + [jp_last]
-            jp_lvl_pct = round(float((pd.Series(w) <= jp_last).mean()), 3)
-        except Exception as e6:
-            log_line(f'WARN:JPX 推移表水位失敗 {type(e6).__name__}(jp 水位本輪 UNKNOWN)')
+        # 水位分位:近 156 週委託買残(含最新)
+        jp_lvl_pct = round(float((pd.Series([jp_hist[k] for k in ks[-157:]]) <= jp_last).mean()), 3)
         jp_detail = (f'買い残 {jp_last/1e6:.2f} 兆円({ks[-1]})回撤 {jp_dd:+.1%}'
                      + (f' 水位 p{jp_lvl_pct:.0%}' if jp_lvl_pct is not None else ''))
         jp_level = 2 if jp_dd < -0.20 else (1 if jp_dd < -0.10 else 0)

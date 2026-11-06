@@ -118,8 +118,8 @@ kr = pd.Series({pd.Timestamp(str(r['TMPV1'])): float(str(r['TMPV2']).replace(','
 emit('kr_dd', (kr / kr.rolling(252, min_periods=60).max() - 1).tail(270))
 
 # ---------- ④ 日本 JPX 過去推移表 ----------
-hp = requests.get('https://www.jpx.co.jp/markets/statistics-equities/margin/06.html', headers=UA, timeout=60)
-xls = re.findall(r'href="(/markets/[^"]+?\.xls)"', hp.text)
+hp = requests.get('https://www.jpx.co.jp/markets/statistics-equities/margin/05.html', headers=UA, timeout=60)
+xls = [p for p in re.findall(r'href="(/markets/[^"]+?\.xls)"', hp.text) if 'mtgk' in p]
 frames = []
 for path in xls:
     rx = requests.get(f'https://www.jpx.co.jp{path}', headers=UA, timeout=60)

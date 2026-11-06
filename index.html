@@ -214,7 +214,7 @@ function render(){
   </div>
   <div class="card">
     <div class="flag"><span class="name">② TXO 保費慢開關</span>${badge(slowArmed?'warn':'good', slowArmed?'🔔 上膛':'未上膛')}</div>
-    <div class="hero">${L.cost_bp==null?'—':L.cost_bp.toFixed(1)}<small> bp(${L.cost==null?'—':L.cost+' 點'},${L.contract||''})</small></div>
+    <div class="hero">${L.cost_bp!=null?L.cost_bp.toFixed(1):L.cost_est_bp!=null?'≈'+L.cost_est_bp.toFixed(1):'—'}<small> bp(${L.cost!=null?L.cost+' 點':L.cost_est!=null?'約 '+Math.round(L.cost_est)+' 點,估':'—'},${L.contract||''})</small></div>
     <div class="sub">上膛=連 20 日 ≤10bp,目前連續 <b>${armDays}</b>/20 日</div>
     <div class="spark" id="sp_cost"><svg></svg><div class="tip"></div><div class="cap">保費 bp(近 ${hp('cost_bp').length} 筆)</div></div>
   </div>

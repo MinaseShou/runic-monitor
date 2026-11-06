@@ -32,6 +32,7 @@ import json, os, re, subprocess, sys, time, io
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import requests
 
@@ -145,11 +146,20 @@ if len(vxn):
 else:
     log_line('WARN:VXN 抓取失敗(本輪 UNKNOWN)')
 
+def estimate_spread(settle, K_hi, K_target, n=5):
+    """Put spread when the lower leg is not listed: fit log(price) on the n lowest listed strikes, extrapolate to K_target,
+    and keep the leg between 0 and the lowest listed put. Chains cut at -6% on 232 days of 2025-11..2026-11: median error 5.6%."""
+    t = settle.sort_index().iloc[:n]
+    if len(t) < n or (t <= 0).any() or K_target >= t.index[0] or K_hi not in settle.index:
+        return None
+    b, a = np.polyfit(t.index.values.astype(float), np.log(t.values.astype(float)), 1)
+    return float(settle.loc[K_hi]) - min(float(np.exp(a + b * K_target)), float(t.iloc[0]))
+
 # ---------- ② 保費(FinMind) ----------
 today = pd.Timestamp.today().normalize()
 op = fetch_finmind('TaiwanOptionDaily', 'TXO', (today - pd.Timedelta(days=14)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
 fu = fetch_finmind('TaiwanFuturesDaily', 'TX', (today - pd.Timedelta(days=14)).strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d'))
-cost = cost_bp = None
+cost = cost_bp = cost_est = cost_est_bp = None
 T = contract = None
 if not op.empty and not fu.empty:
     op['date'] = pd.to_datetime(op['date'])
@@ -179,6 +189,12 @@ if not op.empty and not fu.empty:
                     cost = float(snap.settlement_price.loc[K_hi] - snap.settlement_price.loc[K_lo])
                     cost_bp = round(cost / S * 1e4, 2)
                     contract = str(c0.contract_date.iloc[0])
+                elif abs(K_hi / S - 0.95) <= 0.012:
+                    # 2026-11-06:大跌時 -10% 那腳沒掛出來,最恐慌時反而 N/A。只顯示估值,不進 cost/cost_bp(ARM 不計)。
+                    est = estimate_spread(snap.settlement_price, K_hi, S * 0.90)
+                    if est is not None:
+                        cost_est, cost_est_bp = round(est, 1), round(est / S * 1e4, 2)
+                        contract = str(c0.contract_date.iloc[0])
 
 # ---------- ③ 融資 regime(韓式螺旋判別;margin_regime 案 2026-07-12:擇時判死、僅監測) ----------
 margin_state = None
@@ -657,7 +673,7 @@ cb_detail = ';'.join(f"{x['name']}({x['bond']})收盤 {x['close']:g}/門檻 {x['
                      + (f"、約 {x['eta']} 滿 30" if x['eta'] else '、已滿 30') for x in cb_watch) or 'N/A'
 
 # ---------- 狀態更新與通知(翻轉才響) ----------
-rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=cost_bp,
+rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=cost_bp, cost_est=cost_est, cost_est_bp=cost_est_bp,
            contract=contract, vix_p=round(vix_p, 3) if vix_p == vix_p else None,
            ratio_p=round(ratio_p, 3) if ratio_p == ratio_p else None, G2=g2, G3=g3, vix_date=vix_date,
            margin=margin_state, margin_bal_dd=margin_bal_dd, margin_chg63=margin_chg63,
@@ -683,7 +699,8 @@ hist = [h for h in hist if h.get('date') != rec['date']]
 hist = sorted(hist + [rec], key=lambda h: h['date'])[-120:]
 
 prev_g2, prev_g3 = prev.get('G2'), prev.get('G3')
-cost_str = f'{cost:.0f} 點({cost_bp}bp)' if cost is not None else 'N/A'
+cost_str = (f'{cost:.0f} 點({cost_bp}bp)' if cost is not None else
+            f'約 {cost_est:.0f} 點({cost_est_bp}bp,-10% 腳未掛、外插估)' if cost_est is not None else 'N/A')
 if g2 is not None:
     if g3 and not prev_g3:
         notify('🔴 G3 確認壓力(TXO 保險)', f'VIX p{vix_p:.0%}/ratio p{ratio_p:.0%}。保費 {cost_str}。')

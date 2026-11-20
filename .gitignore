@@ -1,3 +1,5 @@
 __pycache__/
 concentration_run.log
 launchd_concentration.log
+local.env
+.DS_Store

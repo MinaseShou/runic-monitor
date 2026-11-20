@@ -1,31 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""TXO 保險+市場監測 v5——GitHub Actions 版(雙軌之雲端軌;Mac 正本=~/RUNiC_LOCAL/txo/monitor/check_premium.py)
-與 Mac 版差異僅三點:①通知=開 GitHub Issue(本機 fallback=osascript)②USDJPY 加 FRED fallback ③每輪重寫 README 儀表。
-九面旗(+⑧b 子維):
-① G2 壓力開關(VIX p252>=70% 或 VVIX/VIX ratio p252<=20%;翻轉時通知)= 事故前上膛候選(探索性,2026-07-12 radar 相關性分析)
-② 保費慢開關(cost_bp 連 20 個交易日 <=10bp)= 年代級可負擔
-③ 融資 regime(NORMAL/WARNING/SPIRAL;韓式螺旋判別,margin_regime 案:擇時判死僅監測)
-   +上櫃/含櫃雙口徑並列(2026-07-17 翔核准;TPEx 官方源+state 快取增量;regime 判別維持上市口徑,含櫃=同門檻 shadow、翻轉通知)
+"""TXO 保險+市場監測 v5——GitHub Actions 版
+通知=開 GitHub Issue(本機 fallback=osascript);每輪重寫 README 儀表。
+① G2 壓力開關(VIX p252>=70% 或 VVIX/VIX ratio p252<=20%;翻轉時通知)
+② 保費慢開關(cost_bp 連 20 個交易日 <=10bp)
+③ 融資 regime(NORMAL/WARNING/SPIRAL;僅監測)+上櫃/含櫃雙口徑並列(TPEx 官方源;判別維持上市口徑,含櫃=同門檻並列、翻轉通知)
 ④ 韓國融資進度條(KOFIA 日頻;回撤跨 -10%/-20% 通知)
-⑤ 日本槓桿+USDJPY(JPX 過去推移表委託買い残+FRED 匯率;回撤跨 -10%/-20%、円距 63 日高跨 -3%/-6% 通知;純描述未回測)
-⑥ 台指 RV 本土壓力旗(20日RV+單日range 百分位;lv1=RV p85 或 range p95、lv2=RV p95 或 range p99;升級通知;2026-07-17 翔核准,關卡未回測)
-⑦ VXN 科技 vol(CBOE;p252>=70% 亮一次;G2 美系口徑對亞洲/半導體去槓桿盲區補丁——2026-07-17 N=3 首 miss 案)
-⑧ 燃料旗(2026-07-21 翔核准;崩盤研究 Phase1/3:量能 20 日均 p756>=0.90 且融資 20 日 >=+5%=高燃料;
-   歷史佔時 ~11%、日層級 60 日內遇快崩率 46% vs base 27%=描述非預測;門檻 in-sample)
-⑨ 湍流旗(同案;TAIEX 60 日年化波動 p756>=0.90=顛簸;崩盤首腿峰前湍流 AUC 0.658/0.778 雙對照存活;
-   「會崩的頂是顛簸的頂」;2020 COVID 型外生零前兆=兩軸共同盲區)
-⑧b 集中度(2026-07-28 翔核准;燃料旗第三維):Q5(季動能最強 5 分位)季漲中位 p>=0.90 且產業 HHI p>=0.90。
-⑩ 皮媞亞門日檢(2026-08-05 翔核准):V2.2 凍結 spec 門的日頻鬧鐘(TAIEX 2日<=-3% 觸發/空倉中 2日>=+2% V 回場/re-arm);
-   策略內生風控鏡像、非市場層旗,不受疊加鐵律約束;本旗不產生新訊號,執行以週頻 runner 為準。
-   量能/融資描述「有多少錢在燒」,本維描述「錢集中燒在哪」。月頻,Mac 端 monthly_concentration.py
-   預算 concentration.json、本檔只讀(無 FinLab 依賴,讀不到→UNKNOWN)。史上僅 2026-05/06 亮過。
-   🔴描述卡非預測器、不得調曝險:11 項過熱指標對次月動能反轉全部不顯著,且該資訊即使已知也不可交易
-   (反轉 L/S 毛 -1.70%/月、七年虧六年);受「市場層風險訊號永不疊加本書」鐵律約束(0 勝 5 敗)。
-⑪ AI 算力信用(2026-11-04 翔):CoreWeave 9% 2031 公司債殖利率+Nebius 4.5% 2034 可轉債價格(onvista 法蘭克福收盤);
-   同日加擴充籃(CoreWeave 其他債、IREN/TeraWulf/Core Scientific 可轉債、Oracle、Intel/Micron 對照);
-   只記讀值與一年序列,不設門檻、不推播。
-口徑(2026-07-14 翔核定統一):「回撤」=距 252 觀測日(週頻=52 週)內高點,逐日僅用當日已知資訊、無前視;
+⑤ 日本槓桿+USDJPY(JPX 過去推移表委託買い残+FRED 匯率;回撤跨 -10%/-20%、円距 63 日高跨 -3%/-6% 通知;純描述)
+⑥ 台指 RV 本土壓力旗(20日RV+單日range 百分位;lv1=RV p85 或 range p95、lv2=RV p95 或 range p99;升級通知)
+⑦ VXN 科技 vol(CBOE;p252>=70% 亮一次)
+⑧ 燃料旗(量能 20 日均 p756>=0.90 且融資 20 日 >=+5%;描述非預測)
+⑧b 集中度(月頻;Q5 季漲中位 p>=0.90 且產業 HHI p>=0.90;本檔只讀 concentration.json,讀不到→UNKNOWN)
+⑨ 湍流旗(TAIEX 60 日年化波動 p756>=0.90;描述非預測)
+⑩ 兩日跌幅鬧鐘(TAIEX 2日<=-3% 響;響鈴中 2日>=+2% 解除;或到下個週五到期)
+⑪ AI 算力信用(CoreWeave 公司債殖利率+Nebius 可轉債價格+擴充籃,onvista 法蘭克福收盤;只記讀值,不設門檻、不推播)
+口徑:「回撤」=距 252 觀測日(週頻=52 週)內高點,逐日僅用當日已知資訊、無前視;
 「水位」=現值在近 3 年(756 觀測)分佈的百分位——回撤答「跌多少」、水位答「堆多高」,兩面並列。
 資料:FinMind 免 token(TXO+TX+TAIEX)+CBOE 官方 CSV(VIX/VVIX/VXN)+TPEx 官方+KOFIA+JPX+FRED/Yahoo;fail=靜默 skip 留 log"""
 import json, os, re, subprocess, sys, time, io
@@ -196,7 +185,7 @@ if not op.empty and not fu.empty:
                         cost_est, cost_est_bp = round(est, 1), round(est / S * 1e4, 2)
                         contract = str(c0.contract_date.iloc[0])
 
-# ---------- ③ 融資 regime(韓式螺旋判別;margin_regime 案 2026-07-12:擇時判死、僅監測) ----------
+# ---------- ③ 融資 regime(韓式螺旋判別;僅監測) ----------
 margin_state = None
 margin_detail = 'N/A'
 margin_bal_dd = margin_chg63 = margin_px_dd = margin_lvl_pct = None
@@ -231,7 +220,7 @@ except Exception as e:
     margin_detail = f'融資段失敗 {type(e).__name__}'
     log_line(f'WARN:融資 regime 段失敗 {type(e).__name__}(本輪 UNKNOWN)')
 
-# ---------- ③b 上櫃/含櫃雙口徑(TPEx 官方;FinMind 無上櫃 total;2026-07-17 翔核准並列) ----------
+# ---------- ③b 上櫃/含櫃雙口徑(TPEx 官方;FinMind 無上櫃 total) ----------
 def get_json_retry(url, params, timeout):
     # 瞬時 JSONDecodeError 單次重試(2026-08-08 加;8/3 維持率+8/7 TPEx 兩段兩例,
     # 皆深夜輪撞官網維護窗 pattern,端點事後直測皆活=瞬時非改版)
@@ -295,10 +284,9 @@ except Exception as e:
     tp_detail = f'TPEx 段失敗 {type(e).__name__}'
     log_line(f'WARN:TPEx 上櫃融資段失敗 {type(e).__name__}(本輪 UNKNOWN)')
 
-# ---------- ③c 全市場融資維持率 proxy(2026-07-21 翔核准;抄底條件統計案:雷瓦汀 reports 同日) ----------
+# ---------- ③c 全市場融資維持率 proxy ----------
 # 口徑=Σ(個股融資餘額張×1000×收盤價)/(上市+上櫃融資金額);官方四端點;與 FinLab 研究口徑逐位對帳通過。
-# 統計線(認知資產非訊號):下穿160 無資訊/150 有肉/140 肥區(+120日 +20.0%/勝率91%,n=11);
-# 回升上穿150(曾<145)=斷頭潮尾聲確認式(+20日勝率83%);載體=距 130% 制度追繳線的絕對緩衝,非歷史分位。
+# 統計線 160/150/140;回升上穿 150(曾 <145)另行通知。載體=距 130% 追繳線的絕對緩衝,非歷史分位。
 maint_hist = dict(state.get('maint_hist', {})) if isinstance(state, dict) else {}
 maint = None
 maint_detail = 'N/A'
@@ -376,7 +364,7 @@ except Exception as e:
     kr_detail = f'KOFIA 段失敗 {type(e).__name__}'
     log_line(f'WARN:KOFIA 段失敗 {type(e).__name__}(本輪 UNKNOWN)')
 
-# ---------- ⑤ 日本槓桿+USDJPY(JPX 週頻+FRED/Yahoo;2026-07-13 翔核准;context 非訊號、關卡未回測) ----------
+# ---------- ⑤ 日本槓桿+USDJPY(JPX 週頻+FRED/Yahoo;context 非訊號) ----------
 jp_hist = dict(state.get('jp_hist', {})) if isinstance(state, dict) else {}
 jp_dd = fx_dd = None
 jp_level = fx_level = None
@@ -434,7 +422,7 @@ try:
 except Exception as e:
     log_line(f'WARN:USDJPY 段失敗 {type(e).__name__}(本輪 UNKNOWN)')
 
-# ---------- ⑥ 台指 RV 本土壓力旗(TAIEX 日線;2026-07-17 翔核准;G2 亞洲盲區補丁,關卡未回測、context 非訊號) ----------
+# ---------- ⑥ 台指 RV 本土壓力旗(TAIEX 日線;context 非訊號) ----------
 rv20 = rv_pct = range_pct = None
 tw_stress = None
 rv_detail = 'N/A'
@@ -454,7 +442,7 @@ except Exception as e:
     rv_detail = f'RV 段失敗 {type(e).__name__}'
     log_line(f'WARN:台指 RV 段失敗 {type(e).__name__}(本輪 UNKNOWN)')
 
-# ---------- ⑧⑨ 崩盤雙軸:燃料+湍流(2026-07-21 翔核准;崩盤研究 Phase1/3 蛛絲馬跡;描述卡非預測器) ----------
+# ---------- ⑧⑨ 燃料+湍流(描述卡非預測器) ----------
 fuel_turn_pct = fuel_mg20 = fuel_lag = None
 fuel_on = None
 turb_vol60 = turb_vol60_pct = turb_count60 = None
@@ -488,16 +476,9 @@ try:
 except Exception as e:
     log_line(f'WARN:崩盤雙軸段失敗 {type(e).__name__}(本輪 UNKNOWN)')
 
-# ---------- ⑧b 燃料旗第三維:集中度(2026-07-28 翔核准)----------
-# 【為什麼】原燃料旗兩維(量能/融資)描述「有多少錢在燒」,不描述「錢集中燒在哪」。
-#   2026 這波融資分位 5 月就滿了(1.000),真正異常的是動能最強組季漲中位堆到 +101.78%、
-#   前三大產業佔比 63.2%(皆史上 100 分位)。本維補上這塊。
-# 【資料】月頻,由 Mac 端 monthly_concentration.py(需 FinLab)預算並 commit concentration.json;
-#   本檔只讀 json、無 FinLab 依賴,讀不到→UNKNOWN 靜默 skip,不影響其他旗。
-# 【🔴 定位】描述卡非預測器,**不可用於調整曝險**——受「市場層風險訊號永不疊加本書」鐵律約束
-#   (0 勝 5 敗:vol gate/涅濾網/塔門/融資 regime/崩盤 P2)。2026-07-28 實測:11 項過熱指標
-#   對次月動能反轉全部不顯著,且該資訊即使已知也不可交易(反轉 L/S 毛 -1.70%/月、七年虧六年)。
-#   唯一正當用途=事後歸因:分辨回撤是「投機清算」還是「外生衝擊」。
+# ---------- ⑧b 燃料旗第三維:集中度 ----------
+# 月頻,由本機 monthly_concentration.py 預算 concentration.json;本檔只讀 json,讀不到→UNKNOWN 靜默 skip。
+# 描述卡非預測器。
 conc_on = conc_month = None
 conc_q5 = conc_q5_pct = conc_hhi = conc_hhi_pct = None
 conc_detail = 'N/A'
@@ -524,13 +505,9 @@ try:
 except Exception as e:
     log_line(f'WARN:⑧b 集中度段失敗 {type(e).__name__}(本輪 UNKNOWN)')
 
-# ---------- ⑩ 皮媞亞門日檢(2026-08-05 翔核准) ----------
-# 【定位】與 ①-⑨ 不同:非市場層 context 旗,而是皮媞亞 V2.2「TAIEX 2日≤−3% 門+2% V 型
-#   回場(re-arm)」的每日鏡像鬧鐘——週頻 runner 只在週末跑,門觸發/回場都發生在週中,
-#   本旗負責當天推播。門=策略內生風控(V2.2 凍結 spec,vault ml_weekly/V22_SPEC.md),
-#   不受「市場層訊號永不疊加本書」鐵律約束;本旗不產生新訊號,執行以 runner/spec 為準。
-# 【語義】觸發→次一交易日開盤出清、門至下個週五訊號日;空倉中 2日≥+2%→次日回場;
-#   回場後可再觸發(re-arm);門中再觸發→門延到新的下個週五。
+# ---------- ⑩ 兩日跌幅鬧鐘 ----------
+# TAIEX 2 日報酬 ≤ −3% 響;響鈴中 2 日 ≥ +2% 解除,解除後可再響;
+# 響鈴中再 ≤ −3% → 到期日延到新的下個週五;到下個週五自動到期。
 py_gate = py_ret2 = py_until = py_event = None
 py_detail = 'N/A'
 try:
@@ -546,15 +523,15 @@ try:
         if py_gate and py_ret2 >= 0.02:
             py_gate, py_until, py_event = False, None, 'vcatch'
         elif py_gate and py_ret2 <= -0.03 and py_until:
-            py_until = max(py_until, str(_nf.date()))            # 門中再觸發=延門
+            py_until = max(py_until, str(_nf.date()))            # 響鈴中再響=延期
         elif (not py_gate) and py_ret2 <= -0.03:
             py_gate, py_until, py_event = True, str(_nf.date()), 'trigger'
-        py_detail = (f'TAIEX 2日 {py_ret2:+.2%}({_d.date()}),門檻 −3%/回場 +2%'
-                     + (f';門至 {py_until}' if py_gate else ''))
+        py_detail = (f'TAIEX 2日 {py_ret2:+.2%}({_d.date()}),門檻 −3%/解除 +2%'
+                     + (f';到 {py_until}' if py_gate else ''))
 except Exception as e:
-    log_line(f'WARN:⑩ 皮媞亞門段失敗 {type(e).__name__}(本輪 UNKNOWN)')
+    log_line(f'WARN:⑩ 兩日跌幅鬧鐘段失敗 {type(e).__name__}(本輪 UNKNOWN)')
 
-# ---------- ⑪ AI 算力信用(觀察;2026-11-04 翔:「CoreWeave 公司債殖利率」和「Nebius 可轉債價格」加進監控站) ----------
+# ---------- ⑪ AI 算力信用(觀察) ----------
 # onvista 公開 API、法蘭克福收盤(沒有法蘭克福就用 onvista 預設市場);只記讀值與一年序列,不設門檻、不推播。
 # 殖利率自算:年複利(ISMA)、到期還 100,跟 onvista 自己算的差 <0.05pp(2026-11-04 四檔對過)。
 # Nebius 只看價格:2034 這檔本金會增值,用到期還 100 算殖利率會偏低。
@@ -609,7 +586,7 @@ try:
 except Exception as e:
     log_line(f'WARN:⑪ AI 算力信用段失敗 {type(e).__name__}(本輪 N/A)')
 
-# ⑪ 擴充籃(2026-11-04 翔:「看半導體相關的債比較有用，特別是算力公司那些」)——同樣只記讀值。
+# ⑪ 擴充籃——同樣只記讀值。
 # 一般債的殖利率直接用 onvista 算的;可轉債只看價格(股價跌時轉換權先蒸發,跌幅不全是信用)。漲跌都用價格算。
 CREDIT_BASKET = [  # (分組, 名稱, ISIN, 'bond'=一般債 / 'cb'=可轉債)
     ('算力', 'CoreWeave 9.75% 2031-10', 'USU2069EAC40', 'bond'),
@@ -641,37 +618,6 @@ if basket:
     credit_detail += ';擴充籃 20 日:' + '、'.join(
         f"{b['name']} {b['chg20']:+.1%}" for b in basket if b.get('chg20') is not None)
 
-# ---------- ⑫ 可轉債贖回條件(觀察;2026-11-04 翔:天品 6199 兩檔可轉債,追「收盤連續 30 個營業日 ≥ 轉換價 130%」) ----------
-# 條款=天品三發行及轉換辦法第十八條(掃描檔已讀:滿 30 天後公司得於 30 個營業日內寄 30 日期滿的收回通知、按面額現金贖回);
-# 天品四觀測站同寫第 18 條、原文未讀。主辦承銷都是群益金鼎。轉換價調整時改這裡;過了 until 就不顯示。
-# 第一次滿 30 天、或連 10 天以上之後中斷,開 Issue。滿 30 天的推估日只扣週末。
-CB_WATCH = [dict(sid='6199', name='天品三', bond='61993', conv=104.6, until='2026-12-31'),
-            dict(sid='6199', name='天品四', bond='61994', conv=114.8, until='2026-12-31')]
-cb_watch = []
-try:
-    _cbpx = {}
-    for w in CB_WATCH:
-        if str(today.date()) > w['until']:
-            continue
-        if w['sid'] not in _cbpx:
-            _d = fetch_finmind('TaiwanStockPrice', w['sid'], str((today - pd.Timedelta(days=120)).date()), str(today.date()))
-            _cbpx[w['sid']] = pd.Series(_d['close'].astype(float).values, index=pd.to_datetime(_d['date']))
-        _c = _cbpx[w['sid']]
-        _th = round(w['conv'] * 1.3, 2)
-        _n = 0
-        for _v in _c[::-1]:
-            if _v < _th:
-                break
-            _n += 1
-        _rest = max(0, 30 - _n)
-        _eta = str(pd.bdate_range(_c.index[-1] + pd.Timedelta(days=1), periods=_rest)[-1].date()) if _rest else None
-        cb_watch.append(dict(name=w['name'], bond=w['bond'], conv=w['conv'], th=_th, close=float(_c.iloc[-1]),
-                             date=str(_c.index[-1].date()), streak=_n, eta=_eta))
-except Exception as e:
-    log_line(f'WARN:⑫ 可轉債贖回條件段失敗 {type(e).__name__}(本輪 N/A)')
-cb_detail = ';'.join(f"{x['name']}({x['bond']})收盤 {x['close']:g}/門檻 {x['th']:g},連續 {x['streak']} 天"
-                     + (f"、約 {x['eta']} 滿 30" if x['eta'] else '、已滿 30') for x in cb_watch) or 'N/A'
-
 # ---------- 狀態更新與通知(翻轉才響) ----------
 rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=cost_bp, cost_est=cost_est, cost_est_bp=cost_est_bp,
            contract=contract, vix_p=round(vix_p, 3) if vix_p == vix_p else None,
@@ -694,7 +640,7 @@ rec = dict(date=str((T or today).date()), cost=cost and round(cost, 1), cost_bp=
            vol60=turb_vol60, vol60_pct=turb_vol60_pct, count60=turb_count60, turb_on=turb_on,
            py_gate=py_gate, py_gate_until=py_until, py_ret2=py_ret2,
            maint=maint, crwv_ytm=crwv_ytm, crwv_px=crwv_px, crwv_chg20=crwv_chg20,
-           nbis_px=nbis_px, nbis_chg20=nbis_chg20, credit_date=credit_date, cb_watch=cb_watch)
+           nbis_px=nbis_px, nbis_chg20=nbis_chg20, credit_date=credit_date)
 hist = [h for h in hist if h.get('date') != rec['date']]
 hist = sorted(hist + [rec], key=lambda h: h['date'])[-120:]
 
@@ -738,7 +684,7 @@ if turb_on is not None and prev.get('turb_on') is not None and turb_on != prev.g
 if conc_on is not None and prev.get('conc_on') is not None and conc_on != prev.get('conc_on'):
     notify('🟠 集中度旗亮(燃料第三維)' if conc_on else '🟢 集中度旗熄(燃料第三維)',
            (f'投機部位高度堆積:{conc_detail}。'
-            '史上僅 2026-05/06 亮過。🔴描述卡非預測器,**不得用於調整曝險**(鐵律 0 勝 5 敗)。'
+            '史上僅 2026-05/06 亮過。描述卡非預測器。'
             if conc_on else
             f'集中度退出極端:{conc_detail}。滅燈通常代表清算已發生,非風險解除。'))
 
@@ -754,35 +700,18 @@ if maint is not None and prev_maint is not None:
         notify('🟢 維持率回升上穿 150(斷頭潮尾聲確認式)',
                f'{maint_detail};歷史此式 +20日 +4.1%/勝率83%——認知資產非訊號。')
 
-# ⑩ 皮媞亞門(事件才響;trigger/vcatch/weekly 三型)
+# ⑩ 兩日跌幅鬧鐘(事件才響;trigger/vcatch/weekly 三型)
 if py_event == 'trigger':
-    notify('🔴 皮媞亞門觸發(V2.2 內生風控)',
-           f'{py_detail}。spec:次一交易日開盤出清全部持股,空倉至 V 型回場或門到期({py_until})。'
-           '本旗=鬧鐘,執行以 runner/spec 為準。')
+    notify('🔴 兩日跌幅鬧鐘響', f'{py_detail}。')
 elif py_event == 'vcatch':
-    notify('🟢 皮媞亞 V 型回場',
-           f'{py_detail}。spec:次一交易日開盤回場(re-arm:回場後門可再觸發)。')
+    notify('🟢 兩日跌幅鬧鐘解除(反彈)', f'{py_detail}。')
 elif py_event == 'weekly':
-    notify('🟢 皮媞亞門自然解除(週訊號日)',
-           f'{py_detail}。依最新週訊號回場。')
-
-# ⑫ 可轉債贖回條件(新資料日才判;第一次滿 30 天、或連 10 天以上後中斷)
-_prev_cb = {x.get('bond'): x for x in (prev.get('cb_watch') or [])}
-for x in cb_watch:
-    p = _prev_cb.get(x['bond'])
-    if p is None or p.get('date') == x['date']:
-        continue
-    if x['streak'] >= 30 > p.get('streak', 0):
-        notify(f"🟠 {x['name']} 收盤連續 30 天 ≥ 轉換價 130%",
-               f"{cb_detail}。公司可在之後 30 個營業日內寄收回通知、按面額現金贖回(=逼轉換);撐價的理由可能少一個。")
-    elif x['streak'] == 0 and p.get('streak', 0) >= 10:
-        notify(f"🟡 {x['name']} 連續天數中斷",
-               f"收盤 {x['close']:g} < 門檻 {x['th']:g}(原本連續 {p['streak']} 天)。{cb_detail}")
+    notify('🟢 兩日跌幅鬧鐘到期', f'{py_detail}。')
 
 recent = [h['cost_bp'] for h in hist[-ARM_DAYS:] if h.get('cost_bp') is not None]
 slow_armed = len(recent) >= ARM_DAYS and all(b <= ARM_BP for b in recent)
 if slow_armed and not prev.get('slow_armed'):
-    notify('🔔 保費慢開關上膛', f'連 {ARM_DAYS} 交易日 <= {ARM_BP}bp。見登記簿 spike-exit 案。')
+    notify('🔔 保費慢開關上膛', f'連 {ARM_DAYS} 交易日 <= {ARM_BP}bp。')
 
 STATE.write_text(json.dumps(dict(history=hist, last=dict(rec, slow_armed=slow_armed), jp_hist=jp_hist,
                                  tpex_hist=tpex_hist, maint_hist=maint_hist, credit=credit),
@@ -790,7 +719,7 @@ STATE.write_text(json.dumps(dict(history=hist, last=dict(rec, slow_armed=slow_ar
 log_line(f"{rec['date']} {contract or '-'} cost={cost_str} | G2={g2} G3={g3} "
          f"(vixp={vix_p:.2f} ratiop={ratio_p:.2f}) slow_armed={slow_armed} | margin={margin_state}({margin_detail}) "
          f"| TPEX={tp_detail} | KR={kr_detail} | JP={jp_detail} {fx_detail} | RV={rv_detail} lv{tw_stress} | {vxn_detail} hi={vxn_hi} "
-         f"| 燃料={fuel_on}({fuel_detail}) 湍流={turb_on}({turb_detail}) | 皮媞亞門={py_gate}({py_detail}) | 信用={credit_detail} | 可轉債={cb_detail}")
+         f"| 燃料={fuel_on}({fuel_detail}) 湍流={turb_on}({turb_detail}) | 跌幅鬧鐘={py_gate}({py_detail}) | 信用={credit_detail}")
 
 # ---------- README 儀表(GitHub 首頁即儀表) ----------
 def lamp(cond_bad, cond_warn):
@@ -815,17 +744,15 @@ readme = f"""# RUNiC Monitor(十一面旗,每交易日 ~15:00 台北自動更新
 | ⑦ VXN 科技 vol | {'🟡 ON' if vxn_hi else ('🟢 OFF' if vxn_hi is not None else '⚪ UNKNOWN')} | {vxn_detail},門檻 p252≥70% |
 | ⑧ 燃料旗(崩盤雙軸) | {'🟠 ON' if fuel_on else ('🟢 OFF' if fuel_on is not None else '⚪ UNKNOWN')} | {fuel_detail},門檻=量能 p≥90 且融資20日≥+5% |
 | ⑨ 湍流旗(崩盤雙軸) | {'🟠 ON' if turb_on else ('🟢 OFF' if turb_on is not None else '⚪ UNKNOWN')} | {turb_detail},門檻=vol60 p≥90 |
-| ⑩ 皮媞亞門日檢 | {('🔴 門中(空倉)' if py_gate else '🟢 正常') if py_gate is not None else '⚪ UNKNOWN'} | {py_detail} |
+| ⑩ 兩日跌幅鬧鐘 | {('🔴 響鈴中' if py_gate else '🟢 正常') if py_gate is not None else '⚪ UNKNOWN'} | {py_detail} |
 | ⑪ AI 算力信用(觀察) | ⚪ 觀察 | {credit_detail} |
-| ⑫ 可轉債贖回條件(觀察) | ⚪ 觀察 | {cb_detail} |
 
 口徑:回撤=距 252 觀測日(週頻=52 週)內高點(無前視);水位=近 3 年分佈百分位。
 ③b/⑥/⑦ 為 2026-07-17 新增(G2 美系口徑盲區補丁);regime 判別維持上市口徑,含櫃=同門檻 shadow;⑥⑦ 關卡未回測。
 ⑧⑨ 為 2026-07-21 新增(崩盤研究 Phase 1/3 雙軸蛛絲馬跡):燃料=投機槓桿加到頂(高燃料時 60 日內遇快崩率 46% vs base 27%)、湍流=顛簸的頂才崩;皆為描述非預測,外生零前兆型(2020 COVID 式)是共同盲區,解讀詳儀表頁。
-⑩ 為 2026-08-05 新增:皮媞亞 V2.2 門的日頻鬧鐘(TAIEX 2日≤−3% 出清/空倉中 2日≥+2% 回場/re-arm)——**策略內生風控鏡像,非市場層旗**;本旗不產生新訊號,執行以週頻 runner 為準。
+⑩ 兩日跌幅鬧鐘:TAIEX 2日≤−3% 響、響鈴中 2日≥+2% 解除、或到下個週五到期。
 ⑪ 為 2026-11-04 新增:AI 雲端算力業者的信用面(CoreWeave 9% 2031 公司債殖利率、Nebius 4.5% 2034 可轉債價格;onvista 法蘭克福收盤,殖利率年複利自算)——只記讀值,不設門檻、不推播。同日加擴充籃:CoreWeave 其他兩檔一般債與可轉債、IREN/TeraWulf/Core Scientific 可轉債、Oracle 2034(資料中心買家)、Intel/Micron 2033(晶片對照);一般債殖利率用 onvista 的數字,漲跌一律用價格。
-⑫ 為 2026-11-04 新增:個股可轉債的強制贖回條件(收盤連續 30 個營業日 ≥ 轉換價 130%,公司得按面額贖回=逼轉換);目前追天品 6199 的天品三/天品四(主辦承銷群益金鼎),到 2026-12-31。第一次滿 30 天或連 10 天以上後中斷會推播。
 跨關卡/翻轉時自動開 Issue(=手機推播)。全歷史見 [log.md](log.md) 與 git 歷史。
-定位=context 非訊號(「市場層風險訊號永不疊加本書」鐵律);雙軌之雲端軌,Mac launchd 為備援。
+定位=context 非訊號;雙軌之雲端軌,Mac launchd 為備援。
 """
 (HERE / 'README.md').write_text(readme)

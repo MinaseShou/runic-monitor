@@ -1,5 +1,5 @@
 #!/bin/zsh
-# ⑧b 集中度維度 — 排程 wrapper(2026-07-28 翔核准掛 launchd)
+# ⑧b 集中度維度 — 排程 wrapper
 #
 # 設計:冪等 + 自動補跑。每次執行都重算全期並覆寫 concentration.json,
 #   歷史 75 筆都是真月底樣本、只有最後一筆是「進行中的當月」(asof=最新交易日),
@@ -8,12 +8,13 @@
 set -uo pipefail
 
 HERE="$HOME/RUNiC_LOCAL/runic-monitor"
-SR="/Users/minaseshou/Library/CloudStorage/GoogleDrive-minaseshou@gmail.com/其他電腦/我的電腦/STUDIO RUNIC"
 LOG="$HERE/concentration_run.log"
 
 echo "=== $(date '+%Y-%m-%d %H:%M:%S') start ===" >> "$LOG"
 
-set -a; source "$SR/epsilon/.env" 2>/dev/null; set +a
+# 本機設定(不進 repo):local.env 裡寫 RUNIC_ENV=<放 FinLab 憑證的 env 檔路徑>;沒設就只用 finlab 的快取憑證
+[ -f "$HERE/local.env" ] && source "$HERE/local.env"
+[ -n "${RUNIC_ENV:-}" ] && { set -a; source "$RUNIC_ENV" 2>/dev/null; set +a; }
 
 # 🔴 必須寫死絕對路徑:launchd 的 PATH 不含 /Library/Frameworks/...,
 #    `command -v python3` 會抓到系統 Python 3.9(finlab 版本不同、無有效憑證 → 走互動輸入 → EOFError)

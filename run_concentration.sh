@@ -44,4 +44,18 @@ if L['on']:
         f'display notification "{msg}" with title "🟠 集中度旗 ON(描述卡,不調曝險)" sound name "Glass"'], check=False)
 PYEOF
 
+# 推上 repo(只推 concentration.json;雲端那軌讀的是 repo 裡這個檔)。推不上去只通知,本機結果照留。
+(
+  cd "$HERE" || exit 1
+  git add concentration.json
+  git diff --cached --quiet && { echo "push: 無變更"; exit 0; }
+  git -c user.name="runic-monitor[bot]" -c user.email="runic-monitor@users.noreply.github.com" \
+      commit -q -m "concentration $(date '+%Y-%m-%d')" || exit 1
+  git pull -q --rebase || { git rebase --abort 2>/dev/null; exit 1; }
+  git push -q && echo "push: ok"
+) >> "$LOG" 2>&1 || {
+  echo "push FAIL" >> "$LOG"
+  osascript -e 'display notification "concentration.json 沒推上 repo,見 concentration_run.log" with title "⑧b 集中度旗推送失敗" sound name "Basso"' 2>/dev/null
+}
+
 echo "=== $(date '+%Y-%m-%d %H:%M:%S') done ===" >> "$LOG"

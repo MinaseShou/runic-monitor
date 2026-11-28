@@ -1,18 +1,18 @@
 {
  "spec_version": 1,
  "spec": "liq>=30000000 / 5分位 / 動能窗=3個月 / 產業=security_categories(as-of 今日快照,歷史為回溯貼標)",
- "updated": "2026-11-20",
+ "updated": "2026-11-27",
  "note": "描述卡非預測器,不可用於調整曝險",
  "latest": {
   "month": "2026-11",
-  "asof": "2026-11-20",
-  "n": 950,
-  "q5_qtr_median": 1.46,
-  "q5_hhi": 0.0717,
+  "asof": "2026-11-27",
+  "n": 934,
+  "q5_qtr_median": 3.9,
+  "q5_hhi": 0.073,
   "q5_top3_share": 33.7,
   "q5_top_industry": "fixed_income_etf",
   "q5_qtr_median_pct": 0.013,
-  "q5_hhi_pct": 0.25,
+  "q5_hhi_pct": 0.275,
   "q5_top3_share_pct": 0.2,
   "on": false
  },
@@ -689,7 +689,7 @@
    "q5_top3_share": 31.8,
    "q5_top_industry": "電子零組件業",
    "q5_qtr_median_pct": 0.55,
-   "q5_hhi_pct": 0.263,
+   "q5_hhi_pct": 0.25,
    "q5_top3_share_pct": 0.125,
    "on": false
   },
@@ -1046,14 +1046,14 @@
   },
   {
    "month": "2026-11",
-   "asof": "2026-11-20",
-   "n": 950,
-   "q5_qtr_median": 1.46,
-   "q5_hhi": 0.0717,
+   "asof": "2026-11-27",
+   "n": 934,
+   "q5_qtr_median": 3.9,
+   "q5_hhi": 0.073,
    "q5_top3_share": 33.7,
    "q5_top_industry": "fixed_income_etf",
    "q5_qtr_median_pct": 0.013,
-   "q5_hhi_pct": 0.25,
+   "q5_hhi_pct": 0.275,
    "q5_top3_share_pct": 0.2,
    "on": false
   }
